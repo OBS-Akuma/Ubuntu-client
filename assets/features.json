@@ -1,0 +1,19 @@
+[
+  {
+    "name": "Client Proxy",
+    "category": "Performance",
+    "description": "Allows users to use kirkas Built-in Proxys ;3",
+    "features": []
+  },
+  {
+    "name": "News System",
+    "category": "UI",
+    "description": "Displays customizable news cards with categories and rich media",
+    "features": [
+      "General, promotional, event, alert categories",
+      "Images and badges (NEW/LIVE)",
+      "Clickable links",
+      "Fetches news data from remote repository"
+    ]
+  }
+]
