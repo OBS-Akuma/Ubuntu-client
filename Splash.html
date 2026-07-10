@@ -6,142 +6,12 @@
     <title>Ubuntu Client</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="assets/splash.css">
-    <style>
-        /* ── USER DROPDOWN ── */
-        .user-dropdown-container {
-            position: relative;
-            display: inline-block;
-        }
-
-        .user-pill {
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--bg2);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 4px 10px 4px 6px;
-            -webkit-app-region: no-drag;
-            transition: border-color 0.15s;
-        }
-
-        .user-pill:hover {
-            border-color: var(--green-border);
-        }
-
-        .user-pill .arrow {
-            font-size: 0.6rem;
-            color: var(--text-muted);
-            transition: transform 0.2s;
-            margin-left: 2px;
-        }
-
-        .user-pill .arrow.open {
-            transform: rotate(180deg);
-        }
-
-        /* ── DROPDOWN MENU ── */
-        .user-dropdown {
-            position: absolute;
-            top: calc(100% + 8px);
-            right: 0;
-            background: var(--bg1);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            min-width: 220px;
-            padding: 6px 0;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-8px) scale(0.96);
-            transition: all 0.18s ease;
-            z-index: 1000;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.6);
-            -webkit-app-region: no-drag;
-        }
-
-        .user-dropdown.open {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0) scale(1);
-        }
-
-        .user-dropdown-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 16px;
-            color: #aaa;
-            font-size: 0.78rem;
-            transition: background 0.12s;
-            cursor: default;
-        }
-
-        .user-dropdown-item:hover {
-            background: var(--bg2);
-        }
-
-        .user-dropdown-item .label {
-            color: #555;
-            font-weight: 500;
-            min-width: 50px;
-        }
-
-        .user-dropdown-item .value {
-            color: #ccc;
-            font-weight: 400;
-            word-break: break-all;
-        }
-
-        .user-dropdown-item .value.green {
-            color: var(--green);
-        }
-
-        .user-dropdown-divider {
-            height: 1px;
-            background: var(--border);
-            margin: 4px 12px;
-        }
-
-        .user-dropdown-item.logout {
-            cursor: pointer;
-            color: #ff8888;
-        }
-
-        .user-dropdown-item.logout:hover {
-            background: rgba(220,40,40,0.12);
-        }
-
-        .user-dropdown-item.logout i {
-            color: #ff8888;
-        }
-
-        .user-dropdown-item .icon {
-            width: 18px;
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 0.7rem;
-        }
-
-        .user-dropdown-item.switch-account {
-            cursor: pointer;
-            color: var(--green);
-        }
-
-        .user-dropdown-item.switch-account:hover {
-            background: var(--green-dim);
-        }
-
-        .user-dropdown-item.switch-account i {
-            color: var(--green);
-        }
-    </style>
 </head>
 <body>
 
 <div class="launcher">
 
-    <!-- ── TOP BAR ── -->
+    
     <div class="top-bar">
         <div class="logo-area">
             <div class="client-icon">
@@ -156,7 +26,7 @@
 
 <div class="top-social-icons">
     <a class="social-btn" title="Discord" href="https://discord.gg/r6S3mMyT4K" target="_blank"><i class="fab fa-discord"></i></a>
-    <a class="social-btn" title="GitHub" href="https://github.com/OBS-Akuma/Ubuntu-client" target="_blank"><i class="fab fa-github"></i></a>
+    <a class="social-btn" title="Website" href="https://ubuntuclient.xyz" target="_blank"><i class="fa-solid fa-globe"></i></a>
 </div>
 
         <div class="top-bar-spacer"></div>
@@ -167,7 +37,7 @@
             <button class="search-clear" id="searchClearBtn"><i class="fas fa-times-circle"></i></button>
         </div>
 
-        <!-- ── USER DROPDOWN ── -->
+        
 <div class="user-dropdown-container">
     <div class="user-pill" id="userPill">
         <div class="user-avatar" id="userAvatarWrap">
@@ -179,13 +49,13 @@
         <i class="fas fa-chevron-down arrow" id="dropdownArrow"></i>
     </div>
 
-    <!-- Dropdown Menu -->
+    
     <div class="user-dropdown" id="userDropdown">
         <div class="user-dropdown-item" style="color:#555;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;padding:6px 16px;border-bottom:1px solid var(--border);">
             <span>Accounts</span>
         </div>
         <div id="accountList">
-            <!-- Account list will be rendered here -->
+            
         </div>
         <div class="user-dropdown-divider"></div>
         <div class="user-dropdown-item logout" id="dropdownLogout">
@@ -201,10 +71,10 @@
         </div>
     </div>
 
-    <!-- ── BODY ── -->
+    
     <div class="main-layout">
 
-        <!-- ── ICON SIDEBAR ── -->
+        
         <div class="sidebar">
             <button class="tab-btn active" data-tab="launch" data-label="Launch" title="Launch">
                 <i class="fas fa-play"></i>
@@ -238,20 +108,20 @@
             </button>
         </div>
 
-        <!-- ── CONTENT WRAPPER ── -->
+        
         <div class="content-wrapper">
             <div class="content-panel">
 
-                <!-- LAUNCH TAB -->
+                
                 <div id="launch-tab" class="tab-content active">
-                    <div class="content-title">Launcher</div>
+                    <div class="content-title">Wowza, a Client Launcher?</div>
                     <div class="launch-grid">
                         <div class="launch-left">
                             <div class="version-tabs">
                                 <button class="ver-tab active" id="version-tag">0.0.1</button>
                             </div>
 
-                            <!-- Ubuntu-style launch button -->
+                            
                             <button class="launch-play-btn" id="launchBtn">
                                 <i class="fas fa-play" style="font-size:0.9rem;"></i>
                                 Play Now
@@ -281,9 +151,11 @@
                     </div>
                 </div>
 
-                <!-- SETTINGS TAB -->
+                
                 <div id="settings-tab" class="tab-content">
                     <div class="content-title">Settings</div>
+                    
+                    <!-- Proxy Settings -->
                     <div class="settings-group">
                         <div class="option">
                             <div class="left"><span>Proxy URL</span><span class="description">Select server endpoint</span></div>
@@ -296,12 +168,16 @@
                             </select>
                         </div>
                     </div>
+
+                    <!-- Keybind Settings -->
                     <div class="settings-group">
                         <div class="option">
                             <div class="left"><span>Menu Toggle Keybind</span><span class="description">Customizable keybind to toggle the menu</span></div>
                             <button class="change-keybind" id="keybindBtn" style="opacity:0.6;cursor:default;">Click to set</button>
                         </div>
                     </div>
+
+                    <!-- Account Settings -->
                     <div class="settings-group">
                         <div class="option">
                             <div class="left"><span>Account Status</span><span class="description">Logged in via Kirka token</span></div>
@@ -314,7 +190,46 @@
                             </button>
                         </div>
                     </div>
+
+                    <!-- GPU & Performance Settings -->
                     <div class="settings-group">
+                        <div class="settings-group-title">Performance & GPU</div>
+                        
+                        <div class="option">
+                            <div class="left"><span>Unlimited FPS</span><span class="description">Disable frame rate limit and VSync for higher FPS</span></div>
+                            <div class="checkbox"><input type="checkbox" id="unlimited_fps"><label for="unlimited_fps"></label></div>
+                        </div>
+
+                        <div class="option">
+                            <div class="left"><span>In-Process GPU</span><span class="description">Run GPU in main process for better performance</span></div>
+                            <div class="checkbox"><input type="checkbox" id="in_process_gpu"><label for="in_process_gpu"></label></div>
+                        </div>
+
+                        <div class="option">
+                            <div class="left"><span>GPU Rasterization</span><span class="description">Enable GPU-accelerated rasterization</span></div>
+                            <div class="checkbox"><input type="checkbox" id="enable_gpu_rasterization"><label for="enable_gpu_rasterization"></label></div>
+                        </div>
+
+                        <div class="option">
+                            <div class="left"><span>Zero-Copy</span><span class="description">Enable zero-copy for improved performance</span></div>
+                            <div class="checkbox"><input type="checkbox" id="enable_zero_copy"><label for="enable_zero_copy"></label></div>
+                        </div>
+
+                        <div class="option">
+                            <div class="left"><span>Ignore GPU Blacklist</span><span class="description">Allow GPU acceleration even on blacklisted GPUs</span></div>
+                            <div class="checkbox"><input type="checkbox" id="ignore_gpu_blacklist"><label for="ignore_gpu_blacklist"></label></div>
+                        </div>
+
+                        <div class="option">
+                            <div class="left"><span>High DPI Support</span><span class="description">Enable high DPI scaling support</span></div>
+                            <div class="checkbox"><input type="checkbox" id="high_dpi_support" checked><label for="high_dpi_support"></label></div>
+                        </div>
+                    </div>
+
+                    <!-- News Settings -->
+                    <div class="settings-group">
+                        <div class="settings-group-title">News Preferences</div>
+                        
                         <div class="option">
                             <div class="left"><span>General News</span><span class="description">Froke-related news</span></div>
                             <div class="checkbox"><input type="checkbox" id="general_news"><label for="general_news"></label></div>
@@ -334,7 +249,7 @@
                     </div>
                 </div>
 
-                <!-- SCRIPTS TAB -->
+                
                 <div id="scripts-tab" class="tab-content">
                     <div class="content-title">Scripts</div>
                     <div class="empty-tab">
@@ -343,16 +258,22 @@
                     </div>
                 </div>
 
-                <!-- ACTIVITY TAB -->
+                
                 <div id="activity-tab" class="tab-content">
                     <div class="content-title">Activity</div>
-                    <div class="empty-tab">
-                        <i class="fas fa-chart-line"></i>
-                        <p>No recent activity.</p>
+                    <div id="activityContainer">
+                        <div id="activityLoading" class="no-results"><i class="fas fa-spinner fa-pulse"></i> Loading activity...</div>
+                        <div id="activityContent" style="display:none;"></div>
+                        <div id="activityError" class="no-results" style="display:none;">Failed to load activity data.</div>
+                        <div id="activityEmpty" class="no-results" style="display:none;">
+                            <i class="fas fa-chart-line"></i>
+                            <p>No activity data yet.</p>
+                            <p style="font-size:0.75rem;color:#666;margin-top:8px;">Play some games to start tracking kills!</p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- FEATURES TAB -->
+                
                 <div id="features-tab" class="tab-content">
                     <div class="content-title">Client Features</div>
                     <div class="features-grid" id="featuresGrid"></div>
@@ -361,7 +282,7 @@
                     <div id="featuresNoResults" class="no-results" style="display:none;">No features match your search.</div>
                 </div>
 
-                <!-- FAQ TAB -->
+                
                 <div id="faq-tab" class="tab-content">
                     <div class="content-title">FAQ</div>
                     <div class="faq-list">
@@ -380,7 +301,7 @@
                     </div>
                 </div>
 
-                <!-- TOOLS TAB -->
+                
                 <div id="tools-tab" class="tab-content">
                     <div class="content-title">Tools & Resources</div>
                     <div class="tools-grid" id="toolsGrid"></div>
@@ -389,7 +310,7 @@
                     <div id="toolsNoResults" class="no-results" style="display:none;">No tools match your search.</div>
                 </div>
 
-                <!-- OTHER CLIENTS TAB -->
+                
                 <div id="otherclients-tab" class="tab-content">
                     <div class="content-title">Other Clients</div>
                     <div id="clientsGridContainer">
@@ -400,7 +321,7 @@
                     </div>
                 </div>
 
-                <!-- CREDITS TAB -->
+                
                 <div id="credits-tab" class="tab-content">
                     <div class="content-title">Credits</div>
                     <div class="credits-list">
@@ -416,7 +337,7 @@
     <div class="version-footer" id="versionDisplay">v...</div>
 </div>
 
-<!-- ── TOKEN MODAL ── -->
+
 <div id="tokenModal" class="modal-backdrop">
     <div class="modal-box">
         <div class="modal-header">
@@ -440,7 +361,7 @@
 <div id="iconLayer"></div>
 <div id="flashOverlay"></div>
 
-<!-- ── LOAD YOUR EXTERNAL JS ── -->
+
 <script src="assets/MoreSplach.js"></script>
 
 </body>

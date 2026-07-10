@@ -1,5 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Indie+Flower&display=swap');
-
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 * {
     margin: 0;
     padding: 0;
@@ -22,7 +22,7 @@
 }
 
 body {
-    font-family: 'Indie Flower', cursive, system-ui, sans-serif;
+    font-family: "Inter", sans-serif;
     background: transparent;
     display: flex;
     justify-content: center;
@@ -87,6 +87,7 @@ body {
 }
 
 .client-name {
+    font-family: 'Indie Flower', cursive, system-ui, sans-serif;
     font-size: 1.15rem;
     font-weight: 700;
     color: #fff;
@@ -339,6 +340,7 @@ body {
 .tab-content.active { display: block; }
 
 .content-title {
+    font-family: 'Indie Flower', cursive, system-ui, sans-serif;
     font-size: 1rem;
     font-weight: 700;
     color: #555;
@@ -1157,3 +1159,131 @@ body {
 .token-input-wrap textarea:focus {
     filter: blur(0);
 }
+/* ── USER DROPDOWN ── */
+        .user-dropdown-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .user-pill {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 4px 10px 4px 6px;
+            -webkit-app-region: no-drag;
+            transition: border-color 0.15s;
+        }
+
+        .user-pill:hover {
+            border-color: var(--green-border);
+        }
+
+        .user-pill .arrow {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            transition: transform 0.2s;
+            margin-left: 2px;
+        }
+
+        .user-pill .arrow.open {
+            transform: rotate(180deg);
+        }
+
+        /* ── DROPDOWN MENU ── */
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: var(--bg1);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            min-width: 220px;
+            padding: 6px 0;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px) scale(0.96);
+            transition: all 0.18s ease;
+            z-index: 1000;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+            -webkit-app-region: no-drag;
+        }
+
+        .user-dropdown.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0) scale(1);
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            color: #aaa;
+            font-size: 0.78rem;
+            transition: background 0.12s;
+            cursor: default;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--bg2);
+        }
+
+        .user-dropdown-item .label {
+            color: #555;
+            font-weight: 500;
+            min-width: 50px;
+        }
+
+        .user-dropdown-item .value {
+            color: #ccc;
+            font-weight: 400;
+            word-break: break-all;
+        }
+
+        .user-dropdown-item .value.green {
+            color: var(--green);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 12px;
+        }
+
+        .user-dropdown-item.logout {
+            cursor: pointer;
+            color: #ff8888;
+        }
+
+        .user-dropdown-item.logout:hover {
+            background: rgba(220,40,40,0.12);
+        }
+
+        .user-dropdown-item.logout i {
+            color: #ff8888;
+        }
+
+        .user-dropdown-item .icon {
+            width: 18px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+        }
+
+        .user-dropdown-item.switch-account {
+            cursor: pointer;
+            color: var(--green);
+        }
+
+        .user-dropdown-item.switch-account:hover {
+            background: var(--green-dim);
+        }
+
+        .user-dropdown-item.switch-account i {
+            color: var(--green);
+        }

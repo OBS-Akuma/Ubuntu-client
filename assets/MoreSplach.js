@@ -1,6 +1,159 @@
 const { ipcRenderer } = require('electron');
 
-// ── TOKEN / AUTH ──────────────────────────────────────────────────────────────
+
+async function loadActivityData() {
+    console.log(' Loading activity data...');
+    
+    try {
+        const documentsPath = await ipcRenderer.invoke('get-documents-path');
+        const fs = require('fs');
+        const path = require('path');
+        const activityPath = path.join(documentsPath, 'Ubuntu', 'Activity.json');
+        
+        console.log(' Looking for:', activityPath);
+        
+        if (!fs.existsSync(activityPath)) {
+            document.getElementById('activityLoading').style.display = 'none';
+            document.getElementById('activityEmpty').style.display = 'block';
+            return;
+        }
+        
+        const data = fs.readFileSync(activityPath, 'utf8');
+        const stats = JSON.parse(data);
+        
+        console.log(' Stats found:', stats);
+        
+        document.getElementById('activityLoading').style.display = 'none';
+        
+        if (!stats.totalKills || stats.totalKills === 0) {
+            document.getElementById('activityEmpty').style.display = 'block';
+            return;
+        }
+        
+        const content = document.getElementById('activityContent');
+        content.style.display = 'block';
+        
+        let html = `<div style="padding:20px;">`;
+        html += `<h2 style="color:var(--green);margin-bottom:20px;">Kill Statistics</h2>`;
+        html += `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:30px;">`;
+        html += `<div style="background:var(--bg2);padding:20px;border-radius:8px;text-align:center;border:1px solid var(--border);"><div style="font-size:32px;font-weight:bold;color:var(--green);">${stats.totalKills}</div><div style="color:var(--text-muted);font-size:12px;">Total Kills</div></div>`;
+        html += `<div style="background:var(--bg2);padding:20px;border-radius:8px;text-align:center;border:1px solid var(--border);"><div style="font-size:32px;font-weight:bold;color:var(--green);">${Object.keys(stats.weapons).length}</div><div style="color:var(--text-muted);font-size:12px;">Weapons Used</div></div>`;
+        if (stats.lastKill) {
+            html += `<div style="background:var(--bg2);padding:20px;border-radius:8px;text-align:center;border:1px solid var(--border);"><div style="font-size:32px;font-weight:bold;color:var(--green);">${stats.lastKill.weapon}</div><div style="color:var(--text-muted);font-size:12px;">Last Kill</div></div>`;
+        }
+        html += `</div>`;
+        
+        html += `<h3 style="color:var(--text);margin-bottom:15px;">Weapon Breakdown</h3>`;
+        const sortedWeapons = Object.entries(stats.weapons).sort((a, b) => b[1] - a[1]);
+        
+        sortedWeapons.forEach(([weapon, count]) => {
+            const percentage = ((count / stats.totalKills) * 100).toFixed(1);
+            html += `
+                <div style="margin-bottom:10px;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+                        <span style="color:var(--text);font-size:13px;">${weapon}</span>
+                        <span style="color:var(--text-muted);font-size:13px;">${count} (${percentage}%)</span>
+                    </div>
+                    <div style="background:var(--bg3);height:8px;border-radius:4px;overflow:hidden;">
+                        <div style="background:var(--green);height:100%;width:${percentage}%;transition:width 0.5s;"></div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        if (stats.lastUpdated) {
+            html += `<div style="margin-top:20px;color:var(--text-muted);font-size:11px;text-align:center;border-top:1px solid var(--border);padding-top:15px;">Last updated: ${new Date(stats.lastUpdated).toLocaleString()}</div>`;
+        }
+        
+        html += `</div>`;
+        content.innerHTML = html;
+        
+    } catch (e) {
+        console.error(' Error loading activity:', e);
+        document.getElementById('activityLoading').style.display = 'none';
+        document.getElementById('activityError').style.display = 'block';
+    }
+}
+
+
+async function saveSettings(settings) {
+    try {
+        const result = await ipcRenderer.invoke('save-settings', settings);
+        if (result && result.success) {
+            console.log(' Settings saved successfully');
+            return true;
+        } else {
+            console.error(' Failed to save settings:', result?.error);
+            return false;
+        }
+    } catch (e) {
+        console.error(' Failed to save settings:', e);
+        return false;
+    }
+}
+
+
+async function loadSettings() {
+    try {
+        const result = await ipcRenderer.invoke('load-settings');
+        if (result && result.success && result.settings) {
+            return result.settings;
+        }
+    } catch (e) {
+        console.error(' Failed to load settings:', e);
+    }
+    return {
+        proxy: 'https://kirka.io/',
+        unlimited_fps: false,
+        in_process_gpu: false,
+        enable_gpu_rasterization: false,
+        enable_zero_copy: false,
+        ignore_gpu_blacklist: false,
+        high_dpi_support: true,
+        discord_rpc: true
+    };
+}
+
+
+function applySettingsToUI(settings) {
+
+    const proxySelect = document.getElementById('base_url');
+    if (proxySelect && settings.proxy) {
+        for (let option of proxySelect.options) {
+            if (option.value === settings.proxy) {
+                proxySelect.value = settings.proxy;
+                break;
+            }
+        }
+    }
+    
+
+    const checkboxes = [
+        'unlimited_fps',
+        'in_process_gpu',
+        'enable_gpu_rasterization',
+        'enable_zero_copy',
+        'ignore_gpu_blacklist',
+        'high_dpi_support'
+    ];
+    
+    checkboxes.forEach(id => {
+        const checkbox = document.getElementById(id);
+        if (checkbox) {
+            checkbox.checked = settings[id] || false;
+
+            checkbox.addEventListener('change', async () => {
+                console.log(` ${id} changed to:`, checkbox.checked);
+                const currentSettings = await loadSettings();
+                currentSettings[id] = checkbox.checked;
+                await saveSettings(currentSettings);
+                console.log(` ${id} saved:`, checkbox.checked);
+            });
+        }
+    });
+}
+
+
 
 function decodeJwtPayload(token) {
     try {
@@ -55,7 +208,7 @@ async function fetchKirkaProfile(token) {
     };
 }
 
-// ── ACCOUNT MANAGEMENT ──────────────────────────────────────────────────────
+
 
 async function getAccounts() {
     try {
@@ -65,24 +218,24 @@ async function getAccounts() {
         }
         return [];
     } catch (e) {
-        console.error('❌ Failed to get accounts:', e);
+        console.error(' Failed to get accounts:', e);
         return [];
     }
 }
 
 async function saveAccounts(accounts) {
     try {
-        console.log('💾 Saving accounts to file, count:', accounts.length);
+        console.log(' Saving accounts to file, count:', accounts.length);
         const result = await ipcRenderer.invoke('save-accounts', accounts);
         if (result && result.success) {
-            console.log('✅ Accounts saved successfully');
+            console.log(' Accounts saved successfully');
             return true;
         } else {
-            console.error('❌ Failed to save accounts:', result?.error);
+            console.error(' Failed to save accounts:', result?.error);
             return false;
         }
     } catch (e) {
-        console.error('❌ Failed to save accounts:', e);
+        console.error(' Failed to save accounts:', e);
         return false;
     }
 }
@@ -93,57 +246,50 @@ async function getActiveAccount() {
     return active || null;
 }
 
-// ── SET ACTIVE ACCOUNT WITH PROFILE REFRESH ──
+
 async function setActiveAccount(userId) {
-    console.log('🔄 Switching to account:', userId);
+    console.log(' Switching to account:', userId);
     const accounts = await getAccounts();
-    console.log('📊 Current accounts before switch:', accounts.length);
+    console.log(' Current accounts before switch:', accounts.length);
     
     const accountIndex = accounts.findIndex(a => a.userId === userId);
     if (accountIndex === -1) {
-        console.error('❌ Account not found:', userId);
+        console.error(' Account not found:', userId);
         return false;
     }
     
-    // ── REFRESH PROFILE DATA ──
-    console.log('🔄 Refreshing profile data for:', accounts[accountIndex].name);
+    console.log(' Refreshing profile data for:', accounts[accountIndex].name);
     try {
-        // Fetch fresh profile data using the account's token
         const freshProfile = await fetchKirkaProfile(accounts[accountIndex].token);
-        console.log('📥 Fresh profile data:', freshProfile.name, '#', freshProfile.tag);
+        console.log(' Fresh profile data:', freshProfile.name, '#', freshProfile.tag);
         
-        // Update the account with fresh data
         accounts[accountIndex] = {
             ...accounts[accountIndex],
             name: freshProfile.name || accounts[accountIndex].name,
             tag: freshProfile.tag || accounts[accountIndex].tag,
             level: freshProfile.level !== null ? freshProfile.level : accounts[accountIndex].level,
             userId: freshProfile.userId || accounts[accountIndex].userId,
-            token: accounts[accountIndex].token, // Keep the same token
+            token: accounts[accountIndex].token,
             active: true
         };
     } catch (e) {
-        console.error('❌ Failed to refresh profile data:', e);
-        // Keep existing data if refresh fails
+        console.error(' Failed to refresh profile data:', e);
     }
     
     accounts.forEach(a => a.active = false);
     accounts[accountIndex].active = true;
     
-    console.log('📊 Saving accounts after switch:', accounts.length);
+    console.log(' Saving accounts after switch:', accounts.length);
     const saved = await saveAccounts(accounts);
     if (!saved) {
-        console.error('❌ Failed to save accounts');
+        console.error(' Failed to save accounts');
         return false;
     }
     
     const activeAccount = accounts[accountIndex];
-    console.log('✅ Switched to account:', activeAccount.name, '#', activeAccount.tag);
+    console.log(' Switched to account:', activeAccount.name, '#', activeAccount.tag);
     
-    // Update token.txt with the new active token
     await ipcRenderer.invoke('save-token', activeAccount.token);
-    
-    // Send token update to game window if it exists
     ipcRenderer.send('update-game-token', activeAccount.token);
     
     applyUserProfile(activeAccount);
@@ -152,20 +298,20 @@ async function setActiveAccount(userId) {
     return true;
 }
 
-// ── AUTO SAVE ACCOUNT WITH PROFILE REFRESH ──
+
 async function autoSaveAccount(token) {
     try {
-        console.log('🔄 Auto-saving account from token...');
+        console.log(' Auto-saving account from token...');
         const profile = await fetchKirkaProfile(token);
         profile.active = true;
         
         let accounts = await getAccounts();
-        console.log('📊 Current accounts before auto-save:', accounts.length);
+        console.log(' Current accounts before auto-save:', accounts.length);
         
         const existingIndex = accounts.findIndex(a => a.userId === profile.userId);
         
         if (existingIndex !== -1) {
-            console.log('🔄 Updating existing account with fresh data:', profile.name);
+            console.log(' Updating existing account with fresh data:', profile.name);
             accounts[existingIndex] = { 
                 ...accounts[existingIndex], 
                 ...profile, 
@@ -176,15 +322,15 @@ async function autoSaveAccount(token) {
                 if (i !== existingIndex) a.active = false;
             });
         } else {
-            console.log('➕ Adding new account:', profile.name);
+            console.log(' Adding new account:', profile.name);
             accounts.forEach(a => a.active = false);
             accounts.push(profile);
         }
         
-        console.log('📊 Saving accounts after auto-save:', accounts.length);
+        console.log(' Saving accounts after auto-save:', accounts.length);
         const saved = await saveAccounts(accounts);
         if (!saved) {
-            console.error('❌ Failed to save accounts');
+            console.error(' Failed to save accounts');
             return null;
         }
         
@@ -193,22 +339,22 @@ async function autoSaveAccount(token) {
         applyUserProfile(profile);
         renderAccountList();
         
-        console.log('✅ Account auto-saved with fresh data:', profile.name, '#', profile.tag);
-        console.log('📊 Total accounts:', accounts.length);
+        console.log(' Account auto-saved with fresh data:', profile.name, '#', profile.tag);
+        console.log(' Total accounts:', accounts.length);
         return profile;
     } catch (e) {
-        console.error('❌ Failed to auto-save account:', e);
+        console.error(' Failed to auto-save account:', e);
         return null;
     }
 }
 
 async function removeAccount(userId) {
     let accounts = await getAccounts();
-    console.log('📊 Accounts before removal:', accounts.length);
+    console.log(' Accounts before removal:', accounts.length);
     
     accounts = accounts.filter(a => a.userId !== userId);
     
-    console.log('📊 Accounts after removal:', accounts.length);
+    console.log(' Accounts after removal:', accounts.length);
     await saveAccounts(accounts);
     
     const active = await getActiveAccount();
@@ -231,7 +377,7 @@ function getAvatarUrl(tag) {
     return `https://www.smudgy.store/api/list/profile.png?meow=${encodeURIComponent(tag)}&v=${randV}`;
 }
 
-// ── UPDATE UI ──────────────────────────────────────────────────────────────
+
 
 function updateDropdownData(profile) {
     const nameEl = document.getElementById('dropdownName');
@@ -320,20 +466,20 @@ function resetUserPill() {
     renderAccountList();
 }
 
-// ── RENDER ACCOUNT LIST ──
+
 
 async function renderAccountList() {
-    console.log('🔄 Rendering account list...');
+    console.log(' Rendering account list...');
     const accountList = document.getElementById('accountList');
     if (!accountList) {
-        console.warn('⚠️ accountList element not found');
+        console.warn(' accountList element not found');
         return;
     }
     
     const accounts = await getAccounts();
     const active = await getActiveAccount();
     
-    console.log('📊 Accounts in render:', accounts.length, 'Active:', active?.name || 'none');
+    console.log(' Accounts in render:', accounts.length, 'Active:', active?.name || 'none');
     
     if (accounts.length === 0) {
         accountList.innerHTML = `
@@ -388,7 +534,7 @@ async function renderAccountList() {
     });
 }
 
-// ── USER DROPDOWN ──
+
 
 function initUserDropdown() {
     const userPill = document.getElementById('userPill');
@@ -396,7 +542,7 @@ function initUserDropdown() {
     const arrow = document.getElementById('dropdownArrow');
     
     if (!userPill || !dropdown) {
-        console.warn('⚠️ User pill or dropdown not found');
+        console.warn(' User pill or dropdown not found');
         return;
     }
 
@@ -439,28 +585,28 @@ function initUserDropdown() {
         });
     }
 
-    console.log('✅ User dropdown initialized');
+    console.log(' User dropdown initialized');
 }
 
-// ── TOKEN LISTENER ──
+
 
 function initTokenListener() {
     ipcRenderer.on('token-updated', async (event, token) => {
-        console.log('📥 Token updated from game');
+        console.log(' Token updated from game');
         if (token) {
             try {
                 const profile = await autoSaveAccount(token);
                 if (profile) {
-                    console.log('✅ Account auto-saved from game login:', profile.name, '#', profile.tag);
+                    console.log(' Account auto-saved from game login:', profile.name, '#', profile.tag);
                 }
             } catch(e) {
-                console.error('❌ Failed to auto-save account:', e);
+                console.error(' Failed to auto-save account:', e);
             }
         }
     });
     
     ipcRenderer.on('accounts-updated', async (event, accounts) => {
-        console.log('📥 Accounts updated from main process');
+        console.log(' Accounts updated from main process');
         renderAccountList();
         const active = await getActiveAccount();
         if (active) {
@@ -469,63 +615,26 @@ function initTokenListener() {
     });
 }
 
-// ── SETTINGS ──────────────────────────────────────────────────────────────
 
-const DEFAULT_SETTINGS = {
-    proxy: 'https://kirka.io/'
-};
-
-async function loadSettings() {
-    try {
-        const result = await ipcRenderer.invoke('load-settings');
-        if (result && result.success && result.settings) {
-            return result.settings;
-        }
-    } catch (e) {
-        console.error('❌ Failed to load settings:', e);
-    }
-    return DEFAULT_SETTINGS;
-}
-
-async function saveSettings(settings) {
-    try {
-        const result = await ipcRenderer.invoke('save-settings', settings);
-        return result && result.success;
-    } catch (e) {
-        console.error('❌ IPC error saving settings:', e);
-        return false;
-    }
-}
-
-function applySettingsToUI(settings) {
-    const proxySelect = document.getElementById('base_url');
-    if (proxySelect && settings.proxy) {
-        for (let option of proxySelect.options) {
-            if (option.value === settings.proxy) {
-                proxySelect.value = settings.proxy;
-                break;
-            }
-        }
-    }
-}
 
 async function initSettings() {
-    console.log('⚙️ Initializing settings...');
+    console.log(' Initializing settings...');
     const settings = await loadSettings();
     applySettingsToUI(settings);
     
     const proxySelect = document.getElementById('base_url');
     if (proxySelect) {
         proxySelect.addEventListener('change', async () => {
-            const newSettings = { proxy: proxySelect.value };
-            await saveSettings(newSettings);
-            console.log('✅ Proxy updated to:', proxySelect.value);
+            const currentSettings = await loadSettings();
+            currentSettings.proxy = proxySelect.value;
+            await saveSettings(currentSettings);
+            console.log(' Proxy updated to:', proxySelect.value);
         });
     }
-    console.log('✅ Settings initialized');
+    console.log(' Settings initialized');
 }
 
-// ── WINDOW CONTROLS ──
+
 
 function initWindowControls() {
     const minimizeBtn = document.getElementById('minimize-btn');
@@ -546,7 +655,7 @@ function initWindowControls() {
     }
 }
 
-// ── VERSION ───────────────────────────────────────────────────────────────────
+
 
 async function fetchVersion() {
     try {
@@ -565,7 +674,7 @@ async function fetchVersion() {
     }
 }
 
-// ── TABS ──────────────────────────────────────────────────────────────────────
+
 
 function initTabs() {
     const tabBtns = document.querySelectorAll('.tab-btn');
@@ -578,6 +687,10 @@ function initTabs() {
         if (targetTab) targetTab.classList.add('active');
         const targetBtn = document.querySelector(`.tab-btn[data-tab="${id}"]`);
         if (targetBtn) targetBtn.classList.add('active');
+
+        if (id === 'activity') {
+            loadActivityData();
+        }
     }
 
     tabBtns.forEach(b => {
@@ -595,7 +708,7 @@ function initVersionTabs() {
     });
 }
 
-// ── LAUNCH ANIMATION ─────────────────────────────────────────────────────────
+
 
 function initLaunchAnimation() {
     const launchBtn = document.getElementById('launchBtn');
@@ -720,7 +833,7 @@ function initLaunchAnimation() {
     });
 }
 
-// ── HELPERS ───────────────────────────────────────────────────────────────────
+
 
 function escapeHtml(str) {
     if (!str) return '';
@@ -747,7 +860,7 @@ const CATEGORY_COLORS = {
     promotional: '#3a6eb0',
 };
 
-// ── NEWS ──────────────────────────────────────────────────────────────────────
+
 
 function renderNews() {
     const newsScroll = document.getElementById('newsScroll');
@@ -806,7 +919,7 @@ async function loadNews() {
     }
 }
 
-// ── FEATURES ──────────────────────────────────────────────────────────────────
+
 
 async function loadFeatures() {
     const featuresGrid = document.getElementById('featuresGrid');
@@ -846,7 +959,7 @@ async function loadFeatures() {
     }
 }
 
-// ── TOOLS ─────────────────────────────────────────────────────────────────────
+
 
 async function loadTools() {
     const toolsGrid = document.getElementById('toolsGrid');
@@ -891,7 +1004,7 @@ async function loadTools() {
     }
 }
 
-// ── CLIENTS ───────────────────────────────────────────────────────────────────
+
 
 async function loadClients() {
     const clientsGrid = document.getElementById('clientsGrid');
@@ -942,7 +1055,7 @@ async function loadClients() {
     }
 }
 
-// ── SEARCH ────────────────────────────────────────────────────────────────────
+
 
 function initSearch() {
     const searchInput = document.getElementById('globalSearch');
@@ -986,18 +1099,18 @@ function initSearch() {
     }
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
+
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 DOM loaded, initializing...');
+    console.log(' DOM loaded, initializing...');
     
     const accounts = await getAccounts();
-    console.log('📊 Accounts loaded:', accounts.length);
+    console.log(' Accounts loaded:', accounts.length);
     
     if (accounts.length > 0) {
         const active = accounts.find(a => a.active === true);
         if (active) {
-            console.log('✅ Active account found:', active.name, '#', active.tag);
+            console.log(' Active account found:', active.name, '#', active.tag);
             applyUserProfile(active);
         } else {
             accounts[0].active = true;
@@ -1016,7 +1129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initTokenListener();
     initWindowControls();
     initUserDropdown();
-    initSettings();
+    await initSettings();
     
     setTimeout(() => {
         renderAccountList();
@@ -1027,5 +1140,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadTools();
     loadClients();
     initSearch();
-    console.log('✅ Initialization complete');
+    
+    console.log(' Loading activity data on startup...');
+    setTimeout(() => {
+        loadActivityData();
+    }, 500);
+    
+    console.log(' Initialization complete');
 });

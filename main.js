@@ -2,10 +2,66 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { createGameWindow } = require('./game.js');
+const { applySwitches } = require('./util/switches.js');
 
 let splashWindow = null;
 let gameWindow = null;
 
+
+function loadAndApplySwitches() {
+  try {
+    const documentsPath = app.getPath('documents');
+    const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
+    const settingsPath = path.join(ubuntuFolder, 'settings.txt');
+    
+    let settings = {};
+    if (fs.existsSync(settingsPath)) {
+      const settingsData = fs.readFileSync(settingsPath, 'utf8');
+      settings = JSON.parse(settingsData);
+      console.log(' Loaded settings for switches:', settings);
+    }
+    
+
+    applySwitches(settings);
+    console.log(' Switches applied');
+  } catch (e) {
+    console.log(' Failed to apply switches:', e);
+
+    try {
+      applySwitches({});
+    } catch (err) {
+      console.log(' Failed to apply default switches:', err);
+    }
+  }
+}
+
+
+
+try {
+
+  const documentsPath = app.getPath('documents');
+  const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
+  const settingsPath = path.join(ubuntuFolder, 'settings.txt');
+  
+  let settings = {};
+  if (fs.existsSync(settingsPath)) {
+    const settingsData = fs.readFileSync(settingsPath, 'utf8');
+    settings = JSON.parse(settingsData);
+    console.log(' Pre-load settings:', settings);
+  }
+  
+
+  applySwitches(settings);
+  console.log(' Switches applied immediately');
+} catch (e) {
+  console.log(' Could not apply switches immediately:', e);
+
+  try {
+    applySwitches({});
+  } catch (err) {
+    console.log(' Failed to apply default switches:', err);
+  }
+}
 
 function getSettingsFilePath() {
   const documentsPath = app.getPath('documents');
@@ -76,9 +132,34 @@ ipcMain.handle('load-settings', async () => {
     if (fs.existsSync(filePath)) {
       const data = fs.readFileSync(filePath, 'utf8');
       const settings = JSON.parse(data);
-      return { success: true, settings };
+      
+
+      const defaultSettings = {
+        proxy: 'https://kirka.io/',
+        unlimited_fps: false,
+        in_process_gpu: false,
+        enable_gpu_rasterization: false,
+        enable_zero_copy: false,
+        ignore_gpu_blacklist: false,
+        high_dpi_support: true,
+        discord_rpc: true
+      };
+      
+
+      const mergedSettings = { ...defaultSettings, ...settings };
+      
+      return { success: true, settings: mergedSettings };
     }
-    return { success: true, settings: { proxy: 'https://kirka.io/' } };
+    return { success: true, settings: { 
+      proxy: 'https://kirka.io/',
+      unlimited_fps: false,
+      in_process_gpu: false,
+      enable_gpu_rasterization: false,
+      enable_zero_copy: false,
+      ignore_gpu_blacklist: false,
+      high_dpi_support: true,
+      discord_rpc: true
+    } };
   } catch (e) {
     console.error(' Failed to load settings:', e);
     return { success: false, error: e.message };
@@ -90,6 +171,15 @@ ipcMain.handle('save-settings', async (event, settings) => {
     const filePath = getSettingsFilePath();
     fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf8');
     console.log(' Settings saved to:', filePath);
+    
+
+    try {
+      applySwitches(settings);
+      console.log(' Switches re-applied with new settings');
+    } catch (e) {
+      console.error(' Failed to re-apply switches:', e);
+    }
+    
     return { success: true };
   } catch (e) {
     console.error(' Failed to save settings:', e);
@@ -297,7 +387,7 @@ ipcMain.on('update-game-token', (event, token) => {
       console.error(' Failed to execute token update in game:', err);
     });
   } else {
-    console.log('ℹ No game window to update - token will be used when game launches');
+    console.log(' No game window to update - token will be used when game launches');
   }
 });
 
@@ -437,7 +527,7 @@ ipcMain.on('launch-game', () => {
           })();
         `).catch(err => console.error('Failed to inject token on load:', err));
       } else {
-        console.log('ℹ No active token to inject');
+        console.log(' No active token to inject');
       }
     });
     
@@ -460,8 +550,10 @@ ipcMain.on('launch-game', () => {
 });
 
 
+
 app.whenReady().then(() => {
   console.log(' App ready');
+  
   const tokenPath = getTokenFilePath();
   console.log(' Token path:', tokenPath);
   

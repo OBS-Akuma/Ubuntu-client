@@ -15,5 +15,18 @@
       "Clickable links",
       "Fetches news data from remote repository"
     ]
+  },
+  {
+    "name": "Discord RPC",
+    "category": "Discord",
+    "description": "Allows users to know what client your using >,<",
+    "features": [
+      "shows What tab you're in just like smudgy,dawn,juice ect."
+    ]
+  },
+  {
+    "name": "fps + gpu Uncapped",
+    "category": "system",
+    "description": "Allows the game to run better."
   }
 ]
