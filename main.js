@@ -398,16 +398,22 @@ async function fetchProfile(token) {
 }
 
 
+// Window control handlers for HTML buttons
 ipcMain.on('window-minimize', () => {
-  console.log(' Minimize request received');
+  console.log(' Minimize request received from HTML');
   if (splashWindow && !splashWindow.isDestroyed()) {
     splashWindow.minimize();
   }
 });
 
+ipcMain.on('window-close', () => {
+  console.log(' Close request received from HTML');
+  app.quit();
+});
 
+// Keep existing launcher-close handler for compatibility
 ipcMain.on('launcher-close', () => {
-  console.log(' Close request received');
+  console.log(' Close request received (launcher-close)');
   app.quit();
 });
 

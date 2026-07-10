@@ -108,6 +108,10 @@ function createGameWindow() {
     (function() {
       console.log(' Gun Tracker starting...');
       
+      // Flag to prevent duplicate saves
+      let isSaving = false;
+      let saveTimeout = null;
+      
       async function loadExistingData() {
         try {
           if (window.require) {
@@ -125,12 +129,29 @@ function createGameWindow() {
       }
 
       function saveToFile(data) {
+        // Prevent multiple rapid saves
+        if (isSaving) {
+          console.log(' Save already in progress, queuing...');
+          if (saveTimeout) clearTimeout(saveTimeout);
+          saveTimeout = setTimeout(() => {
+            saveToFile(data);
+          }, 500);
+          return false;
+        }
+        
         console.log(' Saving via IPC:', data.totalKills, 'kills');
         try {
           if (window.require) {
+            isSaving = true;
             const { ipcRenderer } = window.require('electron');
             ipcRenderer.send('save-activity-data', data);
             console.log(' IPC message sent');
+            
+            // Reset the saving flag after a delay
+            setTimeout(() => {
+              isSaving = false;
+            }, 1000);
+            
             return true;
           } else {
             console.log(' window.require not available');
@@ -138,6 +159,7 @@ function createGameWindow() {
           }
         } catch (e) {
           console.error(' Failed to send IPC:', e);
+          isSaving = false;
           return false;
         }
       }
@@ -336,17 +358,28 @@ function createGameWindow() {
     })();
   `;
 
+  // ── FIXED INJECTION SCRIPT - Prevents duplicate accounts ──
   const injectionScript = `
     (function() {
       console.log(' Token injection starting...');
       
+      // Flag to prevent duplicate token saves
+      let tokenSaved = false;
+      
       if (!window.electronAPI) {
         window.electronAPI = {
           saveToken: (token) => {
+            // Only save if we haven't already saved this token
+            if (tokenSaved) {
+              console.log(' Token already saved, skipping duplicate');
+              return;
+            }
+            
             if (window.require) {
               try {
                 const { ipcRenderer } = window.require('electron');
                 ipcRenderer.send('save-token-request', token);
+                tokenSaved = true;
                 console.log(' Token sent to launcher');
               } catch(e) {
                 console.error(' Failed to send token:', e);
@@ -356,34 +389,50 @@ function createGameWindow() {
         };
       }
       
-      const originalSetItem = localStorage.setItem;
-      localStorage.setItem = function(key, value) {
-        originalSetItem.call(this, key, value);
-        if (value && (key === 'token' || key === 'Ubuntu_token' || key.toLowerCase().includes('token'))) {
-          console.log(' Token saved with key:', key);
-          if (window.electronAPI && window.electronAPI.saveToken) {
-            window.electronAPI.saveToken(value);
+      // Only override localStorage.setItem once
+      if (!window._localStorageOverridden) {
+        window._localStorageOverridden = true;
+        const originalSetItem = localStorage.setItem;
+        localStorage.setItem = function(key, value) {
+          originalSetItem.call(this, key, value);
+          // Only trigger on specific token keys and if value exists
+          if (value && (key === 'token' || key === 'Ubuntu_token')) {
+            console.log(' Token saved with key:', key);
+            if (window.electronAPI && window.electronAPI.saveToken) {
+              window.electronAPI.saveToken(value);
+            }
           }
-        }
-      };
+        };
+      }
       
       const token = ${JSON.stringify(token)};
       if (token) {
-        localStorage.setItem('token', token);
-        localStorage.setItem('Ubuntu_token', token);
-        console.log(' Injected token from file on game load');
+        // Check if token already exists before injecting
+        const existingToken = localStorage.getItem('token');
+        if (existingToken !== token) {
+          localStorage.setItem('token', token);
+          localStorage.setItem('Ubuntu_token', token);
+          console.log(' Injected token from file on game load');
+        } else {
+          console.log(' Token already exists, skipping injection');
+        }
       } else {
         console.log(' No token to inject');
       }
       
-      window.addEventListener('storage', function(e) {
-        if (e.newValue && (e.key === 'token' || e.key === 'Ubuntu_token')) {
-          console.log(' Token changed in storage');
-          if (window.electronAPI && window.electronAPI.saveToken) {
-            window.electronAPI.saveToken(e.newValue);
+      // Only add storage event listener once
+      if (!window._storageListenerAdded) {
+        window._storageListenerAdded = true;
+        window.addEventListener('storage', function(e) {
+          // Only process if the token actually changed
+          if (e.newValue && (e.key === 'token' || e.key === 'Ubuntu_token') && e.newValue !== e.oldValue) {
+            console.log(' Token changed in storage');
+            if (window.electronAPI && window.electronAPI.saveToken) {
+              window.electronAPI.saveToken(e.newValue);
+            }
           }
-        }
-      });
+        });
+      }
       
       console.log(' Token injection complete');
     })();

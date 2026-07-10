@@ -1287,3 +1287,31 @@ body {
         .user-dropdown-item.switch-account i {
             color: var(--green);
         }
+        /* Replace yellow outline with green */
+*:focus {
+    outline: none !important;
+}
+
+*:focus-visible {
+    outline: 2px solid #1A8E50 !important;
+    outline-offset: 1px;
+    border-radius: 2px;
+}
+
+/* Specifically for buttons */
+button:focus-visible,
+.tab-btn:focus-visible,
+.social-btn:focus-visible,
+.win-btn:focus-visible {
+    outline: 2px solid #1A8E50 !important;
+    outline-offset: 2px;
+}
+
+/* For input fields */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid #1A8E50 !important;
+    outline-offset: 1px;
+    border-color: #1A8E50;
+}

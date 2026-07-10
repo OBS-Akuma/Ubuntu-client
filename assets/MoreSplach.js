@@ -610,6 +610,7 @@ function initWindowControls() {
     if (minimizeBtn) {
         minimizeBtn.addEventListener('click', (e) => {
             e.preventDefault();
+            console.log(' Minimize clicked');
             ipcRenderer.send('window-minimize');
         });
     }
@@ -617,7 +618,8 @@ function initWindowControls() {
     if (closeBtn) {
         closeBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            ipcRenderer.send('launcher-close');
+            console.log(' Close clicked');
+            ipcRenderer.send('window-close');
         });
     }
 }
