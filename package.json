@@ -1,7 +1,7 @@
 {
   "name": "ubuntu-client",
   "version": "1.0.0",
-  "description": "Custom Electron client for Kirka.io",
+  "description": "The Electron client for Kirka.io that i never made but always wanted to.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -15,7 +15,7 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "com.akuma.ubuntuclient",
+    "appId": "xyz.ubuntuclient",
     "productName": "Ubuntu Client",
     "files": [
       "**/*",
