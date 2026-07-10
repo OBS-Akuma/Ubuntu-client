@@ -129,9 +129,15 @@ ipcMain.on('window-minimize', () => {
   }
 });
 
+// Window close handler for the close button
+ipcMain.on('window-close', () => {
+  console.log(' Close request received from window-close');
+  app.quit();
+});
 
+// Keep existing launcher-close handler for compatibility
 ipcMain.on('launcher-close', () => {
-  console.log(' Close request received');
+  console.log(' Close request received (launcher-close)');
   app.quit();
 });
 
