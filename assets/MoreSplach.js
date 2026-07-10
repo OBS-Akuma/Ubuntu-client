@@ -103,20 +103,13 @@ async function loadSettings() {
         console.error(' Failed to load settings:', e);
     }
     return {
-        proxy: 'https://kirka.io/',
-        unlimited_fps: false,
-        in_process_gpu: false,
-        enable_gpu_rasterization: false,
-        enable_zero_copy: false,
-        ignore_gpu_blacklist: false,
-        high_dpi_support: true,
-        discord_rpc: true
+        proxy: 'https://kirka.io/'
     };
 }
 
 
 function applySettingsToUI(settings) {
-
+    // Proxy
     const proxySelect = document.getElementById('base_url');
     if (proxySelect && settings.proxy) {
         for (let option of proxySelect.options) {
@@ -126,33 +119,7 @@ function applySettingsToUI(settings) {
             }
         }
     }
-    
-
-    const checkboxes = [
-        'unlimited_fps',
-        'in_process_gpu',
-        'enable_gpu_rasterization',
-        'enable_zero_copy',
-        'ignore_gpu_blacklist',
-        'high_dpi_support'
-    ];
-    
-    checkboxes.forEach(id => {
-        const checkbox = document.getElementById(id);
-        if (checkbox) {
-            checkbox.checked = settings[id] || false;
-
-            checkbox.addEventListener('change', async () => {
-                console.log(` ${id} changed to:`, checkbox.checked);
-                const currentSettings = await loadSettings();
-                currentSettings[id] = checkbox.checked;
-                await saveSettings(currentSettings);
-                console.log(` ${id} saved:`, checkbox.checked);
-            });
-        }
-    });
 }
-
 
 
 function decodeJwtPayload(token) {

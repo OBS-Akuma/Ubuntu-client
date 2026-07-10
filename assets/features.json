@@ -23,10 +23,5 @@
     "features": [
       "shows What tab you're in just like smudgy,dawn,juice ect."
     ]
-  },
-  {
-    "name": "fps + gpu Uncapped",
-    "category": "system",
-    "description": "Allows the game to run better."
   }
 ]

@@ -2,66 +2,9 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { createGameWindow } = require('./game.js');
-const { applySwitches } = require('./util/switches.js');
 
 let splashWindow = null;
 let gameWindow = null;
-
-
-function loadAndApplySwitches() {
-  try {
-    const documentsPath = app.getPath('documents');
-    const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
-    const settingsPath = path.join(ubuntuFolder, 'settings.txt');
-    
-    let settings = {};
-    if (fs.existsSync(settingsPath)) {
-      const settingsData = fs.readFileSync(settingsPath, 'utf8');
-      settings = JSON.parse(settingsData);
-      console.log(' Loaded settings for switches:', settings);
-    }
-    
-
-    applySwitches(settings);
-    console.log(' Switches applied');
-  } catch (e) {
-    console.log(' Failed to apply switches:', e);
-
-    try {
-      applySwitches({});
-    } catch (err) {
-      console.log(' Failed to apply default switches:', err);
-    }
-  }
-}
-
-
-
-try {
-
-  const documentsPath = app.getPath('documents');
-  const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
-  const settingsPath = path.join(ubuntuFolder, 'settings.txt');
-  
-  let settings = {};
-  if (fs.existsSync(settingsPath)) {
-    const settingsData = fs.readFileSync(settingsPath, 'utf8');
-    settings = JSON.parse(settingsData);
-    console.log(' Pre-load settings:', settings);
-  }
-  
-
-  applySwitches(settings);
-  console.log(' Switches applied immediately');
-} catch (e) {
-  console.log(' Could not apply switches immediately:', e);
-
-  try {
-    applySwitches({});
-  } catch (err) {
-    console.log(' Failed to apply default switches:', err);
-  }
-}
 
 function getSettingsFilePath() {
   const documentsPath = app.getPath('documents');
@@ -136,12 +79,6 @@ ipcMain.handle('load-settings', async () => {
 
       const defaultSettings = {
         proxy: 'https://kirka.io/',
-        unlimited_fps: false,
-        in_process_gpu: false,
-        enable_gpu_rasterization: false,
-        enable_zero_copy: false,
-        ignore_gpu_blacklist: false,
-        high_dpi_support: true,
         discord_rpc: true
       };
       
@@ -152,12 +89,6 @@ ipcMain.handle('load-settings', async () => {
     }
     return { success: true, settings: { 
       proxy: 'https://kirka.io/',
-      unlimited_fps: false,
-      in_process_gpu: false,
-      enable_gpu_rasterization: false,
-      enable_zero_copy: false,
-      ignore_gpu_blacklist: false,
-      high_dpi_support: true,
       discord_rpc: true
     } };
   } catch (e) {
@@ -171,15 +102,6 @@ ipcMain.handle('save-settings', async (event, settings) => {
     const filePath = getSettingsFilePath();
     fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf8');
     console.log(' Settings saved to:', filePath);
-    
-
-    try {
-      applySwitches(settings);
-      console.log(' Switches re-applied with new settings');
-    } catch (e) {
-      console.error(' Failed to re-apply switches:', e);
-    }
-    
     return { success: true };
   } catch (e) {
     console.error(' Failed to save settings:', e);
