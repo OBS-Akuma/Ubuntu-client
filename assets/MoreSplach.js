@@ -628,7 +628,7 @@ function initWindowControls() {
 
 async function fetchVersion() {
     try {
-        const res = await fetch('https://raw.githubusercontent.com/OBS-Akuma/smudgy-client/refs/heads/main/package.json');
+        const res = await fetch('https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/package.json');
         const data = await res.json();
         const versionDisplay = document.getElementById('versionDisplay');
         const versionTag = document.getElementById('version-tag');
@@ -878,7 +878,7 @@ async function loadNews() {
     if (!newsScroll) return;
     newsScroll.innerHTML = `<div class="news-loading"><i class="fas fa-spinner fa-pulse"></i> Loading news...</div>`;
     try {
-        const res = await fetch('https://raw.githubusercontent.com/OBS-Akuma/smudgy-client/refs/heads/main/Api/news.json');
+        const res = await fetch('https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/Api/news.json');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         window._newsItems = await res.json();
         renderNews();
