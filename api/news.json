@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "category": "general",
+    "title": "Hiya",
+    "content": "Woza this is a Ubuntu News card :3",
+    "img": "/assets/icon.png",
+    "imgType": "icon",
+    "link": "https://ubuntuclient.xyz",
+    "updatedAt": 172800000,
+    "live": false
+  }
+]
