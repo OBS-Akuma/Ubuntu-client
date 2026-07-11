@@ -343,7 +343,7 @@ body {
     font-family: 'Indie Flower', cursive, system-ui, sans-serif;
     font-size: 1rem;
     font-weight: 700;
-    color: #555;
+    color: #A2A6A2;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     margin-bottom: 16px;
@@ -406,13 +406,11 @@ body {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    box-shadow: 0 6px 20px rgba(26, 142, 80, 0.45);
     text-transform: uppercase;
 }
 
 .launch-play-btn:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 24px rgba(26, 142, 80, 0.6);
+    transform: translateY(-5px);
 }
 
 .launch-play-btn:active:not(:disabled) {
@@ -432,7 +430,7 @@ body {
     padding: 14px;
     border: 1px solid var(--border);
     line-height: 1.6;
-    color: #666;
+    color: #A2A6A2;
     font-size: 0.8rem;
     flex: 1;
 }
@@ -1315,4 +1313,3 @@ textarea:focus-visible {
     outline-offset: 1px;
     border-color: #1A8E50;
 }
-
