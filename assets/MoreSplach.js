@@ -1,6 +1,5 @@
 const { ipcRenderer } = require('electron');
 
-
 async function loadActivityData() {
     console.log(' Loading activity data...');
     
@@ -75,7 +74,6 @@ async function loadActivityData() {
     }
 }
 
-
 async function saveSettings(settings) {
     try {
         const result = await ipcRenderer.invoke('save-settings', settings);
@@ -92,7 +90,6 @@ async function saveSettings(settings) {
     }
 }
 
-
 async function loadSettings() {
     try {
         const result = await ipcRenderer.invoke('load-settings');
@@ -103,13 +100,20 @@ async function loadSettings() {
         console.error(' Failed to load settings:', e);
     }
     return {
-        proxy: 'https://kirka.io/'
+        proxy: 'https://kirka.io/',
+        newsEnabled: true,
+        unlimited_fps: true,
+        in_process_gpu: true,
+        newsCategories: {
+            general: true,
+            event: true,
+            alert: true,
+            promotional: true
+        }
     };
 }
 
-
 function applySettingsToUI(settings) {
-    // Proxy
     const proxySelect = document.getElementById('base_url');
     if (proxySelect && settings.proxy) {
         for (let option of proxySelect.options) {
@@ -119,63 +123,34 @@ function applySettingsToUI(settings) {
             }
         }
     }
-}
 
-
-function decodeJwtPayload(token) {
-    try {
-        const parts = token.trim().split('.');
-        if (parts.length !== 3) throw new Error('Not a valid JWT');
-        let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-        while (b64.length % 4) b64 += '=';
-        const json = decodeURIComponent(atob(b64).split('').map(c =>
-            '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-        ).join(''));
-        return JSON.parse(json);
-    } catch (e) {
-        return null;
+    // Apply unlimited FPS toggle
+    const unlimitedFpsToggle = document.getElementById('unlimited_fps');
+    if (unlimitedFpsToggle && settings.unlimited_fps !== undefined) {
+        unlimitedFpsToggle.checked = settings.unlimited_fps;
     }
-}
 
-async function fetchKirkaProfile(token) {
-    const payload = decodeJwtPayload(token);
-    if (!payload || !payload.sub) {
-        throw new Error('Invalid token: missing user ID');
+    // Apply in-process GPU toggle
+    const inProcessGpuToggle = document.getElementById('in_process_gpu');
+    if (inProcessGpuToggle && settings.in_process_gpu !== undefined) {
+        inProcessGpuToggle.checked = settings.in_process_gpu;
     }
-    
-    const response = await fetch('https://www.smudgy.store/api/getprofile', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-            userId: payload.sub,
-            isShortId: false
-        })
+
+    // Apply news toggle
+    const newsToggle = document.getElementById('newsToggle');
+    if (newsToggle && settings.newsEnabled !== undefined) {
+        newsToggle.checked = settings.newsEnabled;
+    }
+
+    // Apply category toggles
+    const categoryToggles = document.querySelectorAll('.category-toggle');
+    categoryToggles.forEach(toggle => {
+        const category = toggle.dataset.category;
+        if (category && settings.newsCategories && settings.newsCategories[category] !== undefined) {
+            toggle.checked = settings.newsCategories[category];
+        }
     });
-    
-    if (!response.ok) {
-        throw new Error(`API error ${response.status}`);
-    }
-    
-    const result = await response.json();
-    
-    if (!result.success || !result.data) {
-        throw new Error('Profile not found');
-    }
-    
-    return {
-        tag: result.data.shortId || '',
-        name: result.data.name || '',
-        level: result.data.level || null,
-        userId: result.data.userId || payload.sub || '',
-        token: token,
-        active: false
-    };
 }
-
-
 
 async function getAccounts() {
     try {
@@ -213,40 +188,29 @@ async function getActiveAccount() {
     return active || null;
 }
 
-
 async function setActiveAccount(userId) {
     console.log(' Switching to account:', userId);
-    const accounts = await getAccounts();
-    console.log(' Current accounts before switch:', accounts.length);
     
+    // Get current accounts
+    const accounts = await getAccounts();
+    
+    // Find the account to switch to
     const accountIndex = accounts.findIndex(a => a.userId === userId);
     if (accountIndex === -1) {
         console.error(' Account not found:', userId);
         return false;
     }
     
-    console.log(' Refreshing profile data for:', accounts[accountIndex].name);
-    try {
-        const freshProfile = await fetchKirkaProfile(accounts[accountIndex].token);
-        console.log(' Fresh profile data:', freshProfile.name, '#', freshProfile.tag);
-        
-        accounts[accountIndex] = {
-            ...accounts[accountIndex],
-            name: freshProfile.name || accounts[accountIndex].name,
-            tag: freshProfile.tag || accounts[accountIndex].tag,
-            level: freshProfile.level !== null ? freshProfile.level : accounts[accountIndex].level,
-            userId: freshProfile.userId || accounts[accountIndex].userId,
-            token: accounts[accountIndex].token,
-            active: true
-        };
-    } catch (e) {
-        console.error(' Failed to refresh profile data:', e);
-    }
+    // Find current active account
+    const currentActiveIndex = accounts.findIndex(a => a.active === true);
     
+    // Deactivate all accounts
     accounts.forEach(a => a.active = false);
+    
+    // Set the new account as active
     accounts[accountIndex].active = true;
     
-    console.log(' Saving accounts after switch:', accounts.length);
+    // Save accounts to file
     const saved = await saveAccounts(accounts);
     if (!saved) {
         console.error(' Failed to save accounts');
@@ -256,95 +220,63 @@ async function setActiveAccount(userId) {
     const activeAccount = accounts[accountIndex];
     console.log(' Switched to account:', activeAccount.name, '#', activeAccount.tag);
     
+    // Save token to token.txt file
     await ipcRenderer.invoke('save-token', activeAccount.token);
+    
+    // Update the game with new token
     ipcRenderer.send('update-game-token', activeAccount.token);
     
+    // Update UI with new profile
     applyUserProfile(activeAccount);
-    renderAccountList();
+    
+    // Update account list UI
+    await renderAccountList();
+    
+    // Dispatch event that account was switched
+    document.dispatchEvent(new CustomEvent('account-switched', { 
+        detail: { account: activeAccount }
+    }));
     
     return true;
 }
 
-
-async function autoSaveAccount(token) {
-    try {
-        console.log(' Auto-saving account from token...');
-        const profile = await fetchKirkaProfile(token);
-        profile.active = true;
-        
-        let accounts = await getAccounts();
-        console.log(' Current accounts before auto-save:', accounts.length);
-        
-        const existingIndex = accounts.findIndex(a => a.userId === profile.userId);
-        
-        if (existingIndex !== -1) {
-            console.log(' Updating existing account with fresh data:', profile.name);
-            accounts[existingIndex] = { 
-                ...accounts[existingIndex], 
-                ...profile, 
-                token: token,
-                active: true 
-            };
-            accounts.forEach((a, i) => {
-                if (i !== existingIndex) a.active = false;
-            });
-        } else {
-            console.log(' Adding new account:', profile.name);
-            accounts.forEach(a => a.active = false);
-            accounts.push(profile);
-        }
-        
-        console.log(' Saving accounts after auto-save:', accounts.length);
-        const saved = await saveAccounts(accounts);
-        if (!saved) {
-            console.error(' Failed to save accounts');
-            return null;
-        }
-        
-        await ipcRenderer.invoke('save-token', token);
-        
-        applyUserProfile(profile);
-        renderAccountList();
-        
-        console.log(' Account auto-saved with fresh data:', profile.name, '#', profile.tag);
-        console.log(' Total accounts:', accounts.length);
-        return profile;
-    } catch (e) {
-        console.error(' Failed to auto-save account:', e);
-        return null;
-    }
-}
-
 async function removeAccount(userId) {
+    console.log(' Removing account:', userId);
+    
     let accounts = await getAccounts();
-    console.log(' Accounts before removal:', accounts.length);
+    const wasActive = accounts.find(a => a.userId === userId)?.active || false;
     
+    // Remove the account
     accounts = accounts.filter(a => a.userId !== userId);
-    
-    console.log(' Accounts after removal:', accounts.length);
     await saveAccounts(accounts);
     
-    const active = await getActiveAccount();
-    if (!active && accounts.length > 0) {
+    if (accounts.length === 0) {
+        // No accounts left - reset everything
+        resetUserPill();
+        await ipcRenderer.invoke('clear-token');
+        ipcRenderer.send('update-game-token', null);
+    } else if (wasActive) {
+        // If the removed account was active, switch to the first account
         accounts[0].active = true;
         await saveAccounts(accounts);
         await ipcRenderer.invoke('save-token', accounts[0].token);
         ipcRenderer.send('update-game-token', accounts[0].token);
         applyUserProfile(accounts[0]);
-    } else if (accounts.length === 0) {
-        resetUserPill();
-        ipcRenderer.invoke('clear-token');
-        ipcRenderer.send('update-game-token', null);
+    } else {
+        // Just refresh the display
+        const active = await getActiveAccount();
+        if (active) {
+            applyUserProfile(active);
+        }
     }
-    renderAccountList();
+    
+    await renderAccountList();
 }
 
 function getAvatarUrl(tag) {
     const randV = Math.floor(Math.random() * 9000000) + 1000000;
-    return `https://www.smudgy.store/api/list/profile.png?meow=${encodeURIComponent(tag)}&v=${randV}`;
+    return `https://www.smudgy.store/api/list/profile.png?meow=${encodeURIComponent(tag || '')}&v=${randV}`;
 }
-
-
 
 function updateDropdownData(profile) {
     const nameEl = document.getElementById('dropdownName');
@@ -359,6 +291,8 @@ function updateDropdownData(profile) {
 }
 
 function applyUserProfile(profile) {
+    console.log(' Applying user profile:', profile?.name || 'Guest');
+    
     if (!profile) {
         resetUserPill();
         return;
@@ -402,10 +336,11 @@ function applyUserProfile(profile) {
     if (tokenStatusName) tokenStatusName.textContent = displayName;
 
     updateDropdownData(profile);
-    renderAccountList();
 }
 
 function resetUserPill() {
+    console.log(' Resetting user pill to Guest');
+    
     const userNameDisplay = document.getElementById('userNameDisplay');
     const userLevelDisplay = document.getElementById('userLevelDisplay');
     const userAvatarIcon = document.getElementById('userAvatarIcon');
@@ -430,10 +365,7 @@ function resetUserPill() {
     if (tokenStatusRow) tokenStatusRow.style.display = 'none';
 
     updateDropdownData(null);
-    renderAccountList();
 }
-
-
 
 async function renderAccountList() {
     console.log(' Rendering account list...');
@@ -478,11 +410,19 @@ async function renderAccountList() {
         `;
     }).join('');
     
+    // Add click handlers for account items
     accountList.querySelectorAll('.account-item').forEach(item => {
         item.addEventListener('click', async (e) => {
             if (e.target.classList.contains('remove-account')) return;
             const userId = item.dataset.userid;
-            await setActiveAccount(userId);
+            const active = await getActiveAccount();
+            
+            // Only switch if not already active
+            if (active && active.userId !== userId) {
+                await setActiveAccount(userId);
+            }
+            
+            // Close dropdown
             const dropdown = document.getElementById('userDropdown');
             const arrow = document.getElementById('dropdownArrow');
             if (dropdown) dropdown.classList.remove('open');
@@ -490,6 +430,7 @@ async function renderAccountList() {
         });
     });
     
+    // Add click handlers for remove buttons
     accountList.querySelectorAll('.remove-account').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -500,8 +441,6 @@ async function renderAccountList() {
         });
     });
 }
-
-
 
 function initUserDropdown() {
     const userPill = document.getElementById('userPill');
@@ -555,34 +494,25 @@ function initUserDropdown() {
     console.log(' User dropdown initialized');
 }
 
-
-
 function initTokenListener() {
     ipcRenderer.on('token-updated', async (event, token) => {
         console.log(' Token updated from game');
-        if (token) {
-            try {
-                const profile = await autoSaveAccount(token);
-                if (profile) {
-                    console.log(' Account auto-saved from game login:', profile.name, '#', profile.tag);
-                }
-            } catch(e) {
-                console.error(' Failed to auto-save account:', e);
-            }
+        await renderAccountList();
+        const active = await getActiveAccount();
+        if (active) {
+            applyUserProfile(active);
         }
     });
     
     ipcRenderer.on('accounts-updated', async (event, accounts) => {
         console.log(' Accounts updated from main process');
-        renderAccountList();
+        await renderAccountList();
         const active = await getActiveAccount();
         if (active) {
             applyUserProfile(active);
         }
     });
 }
-
-
 
 async function initSettings() {
     console.log(' Initializing settings...');
@@ -598,10 +528,64 @@ async function initSettings() {
             console.log(' Proxy updated to:', proxySelect.value);
         });
     }
+
+    // Unlimited FPS toggle listener
+    const unlimitedFpsToggle = document.getElementById('unlimited_fps');
+    if (unlimitedFpsToggle) {
+        unlimitedFpsToggle.addEventListener('change', async () => {
+            const currentSettings = await loadSettings();
+            currentSettings.unlimited_fps = unlimitedFpsToggle.checked;
+            await saveSettings(currentSettings);
+            console.log(' Unlimited FPS set to:', unlimitedFpsToggle.checked);
+        });
+    }
+
+    // In-process GPU toggle listener
+    const inProcessGpuToggle = document.getElementById('in_process_gpu');
+    if (inProcessGpuToggle) {
+        inProcessGpuToggle.addEventListener('change', async () => {
+            const currentSettings = await loadSettings();
+            currentSettings.in_process_gpu = inProcessGpuToggle.checked;
+            await saveSettings(currentSettings);
+            console.log(' In-process GPU set to:', inProcessGpuToggle.checked);
+        });
+    }
+
+    // News toggle listener
+    const newsToggle = document.getElementById('newsToggle');
+    if (newsToggle) {
+        newsToggle.addEventListener('change', async () => {
+            const currentSettings = await loadSettings();
+            currentSettings.newsEnabled = newsToggle.checked;
+            await saveSettings(currentSettings);
+            console.log(' News enabled:', newsToggle.checked);
+            loadNews();
+        });
+    }
+
+    // Category toggle listeners
+    const categoryToggles = document.querySelectorAll('.category-toggle');
+    categoryToggles.forEach(toggle => {
+        toggle.addEventListener('change', async () => {
+            const category = toggle.dataset.category;
+            const currentSettings = await loadSettings();
+            if (!currentSettings.newsCategories) {
+                currentSettings.newsCategories = {
+                    general: true,
+                    event: true,
+                    alert: true,
+                    promotional: true
+                };
+            }
+            currentSettings.newsCategories[category] = toggle.checked;
+            await saveSettings(currentSettings);
+            console.log(` Category ${category} set to:`, toggle.checked);
+            loadNews();
+        });
+    });
+
     console.log(' Settings initialized');
 }
-
-
 
 function initWindowControls() {
     const minimizeBtn = document.getElementById('minimize-btn');
@@ -624,8 +608,6 @@ function initWindowControls() {
     }
 }
 
-
-
 async function fetchVersion() {
     try {
         const res = await fetch('https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/package.json');
@@ -642,8 +624,6 @@ async function fetchVersion() {
         if (versionTag) versionTag.textContent = 'v?.?.?';
     }
 }
-
-
 
 function initTabs() {
     const tabBtns = document.querySelectorAll('.tab-btn');
@@ -676,8 +656,6 @@ function initVersionTabs() {
         });
     });
 }
-
-
 
 function initLaunchAnimation() {
     const launchBtn = document.getElementById('launchBtn');
@@ -802,8 +780,6 @@ function initLaunchAnimation() {
     });
 }
 
-
-
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/[&<>]/g, function(m) {
@@ -829,16 +805,37 @@ const CATEGORY_COLORS = {
     promotional: '#3a6eb0',
 };
 
-
-
-function renderNews() {
+async function renderNews() {
     const newsScroll = document.getElementById('newsScroll');
-    if (!newsScroll || !window._newsItems) return;
-    const filtered = window._newsItems;
-    if (!filtered.length) {
-        newsScroll.innerHTML = `<div class="news-empty">No news available.</div>`;
+    if (!newsScroll) return;
+    
+    const settings = await loadSettings();
+    const newsEnabled = settings.newsEnabled !== undefined ? settings.newsEnabled : true;
+    const categoryFilters = settings.newsCategories || {
+        general: true,
+        event: true,
+        alert: true,
+        promotional: true
+    };
+
+    if (!newsEnabled || !window._newsItems) {
+        if (!newsEnabled) {
+            newsScroll.innerHTML = `<div class="news-empty">News is disabled. Enable it in settings.</div>`;
+        } else {
+            newsScroll.innerHTML = `<div class="news-loading"><i class="fas fa-spinner fa-pulse"></i> Loading news...</div>`;
+        }
         return;
     }
+
+    const filtered = window._newsItems.filter(n => {
+        return categoryFilters[n.category] !== false;
+    });
+
+    if (!filtered.length) {
+        newsScroll.innerHTML = `<div class="news-empty">No news available for selected categories.</div>`;
+        return;
+    }
+
     newsScroll.innerHTML = filtered.map(n => {
         const catColor = CATEGORY_COLORS[n.category] || '#1A8E50';
         const dateStr = formatNewsDate(n.updatedAt);
@@ -878,17 +875,15 @@ async function loadNews() {
     if (!newsScroll) return;
     newsScroll.innerHTML = `<div class="news-loading"><i class="fas fa-spinner fa-pulse"></i> Loading news...</div>`;
     try {
-        const res = await fetch('https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/Api/news.json');
+        const res = await fetch('https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/api/news.json');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         window._newsItems = await res.json();
-        renderNews();
+        await renderNews();
     } catch(e) {
         console.error('News fetch error:', e);
         newsScroll.innerHTML = `<div class="news-empty">Failed to load news.</div>`;
     }
 }
-
-
 
 async function loadFeatures() {
     const featuresGrid = document.getElementById('featuresGrid');
@@ -927,8 +922,6 @@ async function loadFeatures() {
         if (featuresGrid) featuresGrid.innerHTML = '';
     }
 }
-
-
 
 async function loadTools() {
     const toolsGrid = document.getElementById('toolsGrid');
@@ -972,8 +965,6 @@ async function loadTools() {
         if (toolsGrid) toolsGrid.innerHTML = '';
     }
 }
-
-
 
 async function loadClients() {
     const clientsGrid = document.getElementById('clientsGrid');
@@ -1024,8 +1015,6 @@ async function loadClients() {
     }
 }
 
-
-
 function initSearch() {
     const searchInput = document.getElementById('globalSearch');
     const clearBtn = document.getElementById('searchClearBtn');
@@ -1068,8 +1057,6 @@ function initSearch() {
     }
 }
 
-
-
 document.addEventListener('DOMContentLoaded', async () => {
     console.log(' DOM loaded, initializing...');
     
@@ -1082,6 +1069,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log(' Active account found:', active.name, '#', active.tag);
             applyUserProfile(active);
         } else {
+            // No active account set, set first as active
             accounts[0].active = true;
             await saveAccounts(accounts);
             await ipcRenderer.invoke('save-token', accounts[0].token);

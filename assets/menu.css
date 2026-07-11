@@ -1,0 +1,266 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+}
+
+:root {
+    --green: #1A8E50;
+    --green-dim: rgba(26, 142, 80, 0.15);
+    --green-border: rgba(26, 142, 80, 0.35);
+    --bg0: #080808;
+    --bg1: #0d0d0d;
+    --bg2: #111111;
+    --bg3: #161616;
+    --border: rgba(255, 255, 255, 0.07);
+    --text: #e8e8e8;
+    --text-muted: #666;
+}
+
+body {
+    font-family: "Inter", sans-serif;
+    background: var(--bg0);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 1.5rem;
+}
+
+*:focus { outline: none !important; }
+*:focus-visible {
+    outline: 2px solid #1A8E50 !important;
+    outline-offset: 1px;
+    border-radius: 2px;
+}
+input:focus-visible,
+select:focus-visible {
+    outline: 2px solid #1A8E50 !important;
+    outline-offset: 1px;
+    border-color: #1A8E50;
+}
+
+/* ----- TALL & NARROW MENU ----- */
+#nameless-menu-overlay {
+    display: block !important;
+    width: 100%;
+    max-width: 230px;
+}
+
+.nameless-menu {
+    background: var(--bg1);
+    border-radius: 12px;
+    padding: 1rem 0.8rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px var(--border);
+    border: 1px solid var(--border);
+    color: var(--text);
+    max-height: 92vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #2a2a2a var(--bg1);
+    font-family: "Inter", sans-serif;
+}
+
+.nameless-menu::-webkit-scrollbar {
+    width: 3px;
+}
+.nameless-menu::-webkit-scrollbar-track {
+    background: var(--bg1);
+}
+.nameless-menu::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+    border-radius: 12px;
+}
+
+/* ----- HEADER ----- */
+.menu-header {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #666;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.menu-header i {
+    color: var(--green);
+    font-size: 0.7rem;
+}
+
+/* ----- SETTING ITEMS ----- */
+.setting-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.45rem 0.1rem;
+    border-bottom: 1px solid var(--border);
+    gap: 0.3rem;
+    flex-wrap: wrap;
+}
+
+.setting-item:last-of-type {
+    border-bottom: none;
+}
+
+.setting-label {
+    font-size: 0.65rem;
+    font-weight: 450;
+    color: #aaa;
+    letter-spacing: 0.01em;
+    flex-shrink: 0;
+    min-width: 90px;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.setting-label i {
+    color: #555;
+    font-size: 0.6rem;
+    width: 14px;
+    text-align: center;
+}
+
+.setting-label-sm {
+    min-width: 60px;
+}
+
+.setting-input {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.6rem;
+    color: #bbb;
+    width: 100px;
+    outline: none;
+    transition: 0.15s;
+    font-family: "Inter", sans-serif;
+    flex: 1;
+    min-width: 70px;
+}
+
+.setting-input:focus {
+    border-color: var(--green-border);
+    background: var(--bg3);
+}
+
+.setting-input::placeholder {
+    color: #333;
+    font-size: 0.55rem;
+}
+
+/* ----- SELECT DROPDOWN (theme) ----- */
+.setting-select {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.6rem;
+    color: #bbb;
+    outline: none;
+    transition: 0.15s;
+    font-family: "Inter", sans-serif;
+    cursor: default;
+    min-width: 80px;
+}
+
+.setting-select:focus {
+    border-color: var(--green-border);
+    background: var(--bg3);
+}
+
+.setting-select option {
+    background: var(--bg1);
+    color: #bbb;
+}
+
+/* ----- ZOOM CONTROLS (grouped) ----- */
+.zoom-group {
+    display: flex;
+    gap: 0.2rem;
+    align-items: center;
+}
+
+.zoom-btn {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.6rem;
+    color: #888;
+    cursor: default;
+    transition: 0.15s;
+    font-family: "Inter", sans-serif;
+    min-width: 28px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.zoom-btn i {
+    font-size: 0.55rem;
+}
+
+.zoom-btn:hover {
+    border-color: var(--green-border);
+    color: var(--green);
+}
+
+.zoom-btn.active {
+    background: var(--green-dim);
+    color: var(--green);
+    border-color: var(--green-border);
+}
+
+.zoom-value {
+    font-size: 0.6rem;
+    color: #777;
+    min-width: 32px;
+    text-align: center;
+    font-weight: 500;
+}
+
+/* ----- DIVIDER ----- */
+.menu-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0.2rem 0;
+}
+
+/* demo note */
+.demo-note {
+    position: fixed;
+    bottom: 1rem;
+    font-size: 0.55rem;
+    color: #222;
+    background: rgba(13,13,13,0.8);
+    padding: 0.15rem 0.8rem;
+    border-radius: 30px;
+    backdrop-filter: blur(4px);
+    border: 1px solid var(--border);
+    font-family: "Inter", sans-serif;
+}
+
+@media (max-width: 280px) {
+    #nameless-menu-overlay {
+        max-width: 180px;
+    }
+    .setting-label {
+        font-size: 0.55rem;
+        min-width: 70px;
+    }
+}
+
+/* Menu close button */
+.menu-close:hover {
+    color: #fff !important;
+    background: rgba(255,255,255,0.05);
+}

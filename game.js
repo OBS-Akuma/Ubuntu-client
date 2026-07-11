@@ -56,6 +56,25 @@ ipcMain.handle('load-activity-data', () => {
 });
 
 function createGameWindow() {
+  // Check if game window already exists
+  if (gameWindow && !gameWindow.isDestroyed()) {
+    console.log(' Game window already exists, showing it');
+    gameWindow.show();
+    gameWindow.focus();
+    return gameWindow;
+  }
+
+  // Read menu files
+  let menuHTML = '';
+  let menuCSS = '';
+  try {
+    menuHTML = fs.readFileSync(path.join(__dirname, 'assets/html/menu.html'), 'utf8');
+    menuCSS = fs.readFileSync(path.join(__dirname, 'assets/css/menu.css'), 'utf8');
+    console.log('[Menu] Loaded menu files');
+  } catch (e) {
+    console.log('[Menu] Could not read menu files:', e.message);
+  }
+
   gameWindow = new BrowserWindow({
     fullscreen: true,
     icon: path.join(__dirname, "/assets/icon.png"),
@@ -76,8 +95,9 @@ function createGameWindow() {
   const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
   const tokenPath = path.join(ubuntuFolder, 'token.txt');
   let token = '';
-  let targetPlayer = 'Akuma';
+  let targetPlayer = 'Newbie'; // Default fallback name
   
+  // Load the active account from token.txt
   try {
     if (fs.existsSync(tokenPath)) {
       const data = fs.readFileSync(tokenPath, 'utf8');
@@ -85,30 +105,319 @@ function createGameWindow() {
         try {
           const accounts = JSON.parse(data);
           const active = accounts.find(a => a.active === true);
-          if (active && active.token) {
-            token = active.token;
-            targetPlayer = active.name || 'Akuma';
-            console.log(' Active token loaded for:', active.name, '#', active.tag);
-            console.log(' Tracking kills for player:', targetPlayer);
+          if (active) {
+            token = active.token || '';
+            targetPlayer = active.name || active.tag || 'Newbie';
+            console.log('═══════════════════════════════════════════════════════');
+            console.log(' ACTIVE ACCOUNT LOADED:');
+            console.log(`   Name: ${active.name}`);
+            console.log(`   Tag: ${active.tag}`);
+            console.log(`   Level: ${active.level}`);
+            console.log(`   UserId: ${active.userId}`);
+            console.log('═══════════════════════════════════════════════════════');
+            console.log(` Tracking kills for player: ${targetPlayer}`);
           } else {
-            console.log(' No active account found in token file');
+            console.log(' No active account found in token file, using fallback: Newbie');
           }
         } catch (e) {
-          console.log(' Invalid JSON in token file, ignoring');
+          console.log(' Invalid JSON in token file, using fallback: Newbie');
         }
+      } else {
+        console.log(' Token file is empty, using fallback: Newbie');
       }
     } else {
-      console.log(' No token file found');
+      console.log(' No token file found, using fallback: Newbie');
     }
   } catch (e) {
     console.log(' Error reading token:', e);
   }
 
+  // ─── MENU SCRIPT ───
+  const menuScript = `
+    (function() {
+      console.log('[Menu] Loading menu system...');
+      
+      function initMenu() {
+        try {
+          // Menu HTML and CSS from main process
+          const menuHTML = ${JSON.stringify(menuHTML)};
+          const menuCSS = ${JSON.stringify(menuCSS)};
+          
+          if (!menuHTML) {
+            console.error('[Menu] No menu HTML provided');
+            return;
+          }
+          
+          // Create menu container
+          const container = document.createElement('div');
+          container.innerHTML = menuHTML;
+          container.id = 'ubuntu-menu-container';
+          container.style.cssText = 'z-index: 99999999; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95); display: none; opacity: 0; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);';
+          
+          // Inject CSS
+          const style = document.createElement('style');
+          style.innerHTML = menuCSS;
+          container.prepend(style);
+          
+          document.body.appendChild(container);
+          console.log('[Menu] Container added to DOM');
+          
+          // Create menu object
+          const menu = {
+            container: container,
+            visible: false,
+            show: function() {
+              this.visible = true;
+              this.container.style.display = 'block';
+              requestAnimationFrame(() => {
+                this.container.style.opacity = '1';
+                this.container.style.transform = 'translate(-50%, -50%) scale(1)';
+              });
+              document.body.style.overflow = 'hidden';
+              console.log('[Menu] Shown');
+            },
+            hide: function() {
+              this.visible = false;
+              this.container.style.opacity = '0';
+              this.container.style.transform = 'translate(-50%, -50%) scale(0.95)';
+              setTimeout(() => {
+                this.container.style.display = 'none';
+                document.body.style.overflow = '';
+              }, 300);
+              console.log('[Menu] Hidden');
+            },
+            toggle: function() {
+              if (this.visible) {
+                this.hide();
+              } else {
+                this.show();
+              }
+            }
+          };
+          
+          // Store reference globally
+          window.UbuntuMenu = menu;
+          
+          // ── EVENT LISTENERS ──
+          
+          // Right-click to toggle
+          document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            menu.toggle();
+            return false;
+          });
+          
+          // Right Shift key to toggle
+          document.addEventListener('keydown', (e) => {
+            if (e.code === 'ShiftRight') {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('[Menu] Right Shift pressed - toggling menu');
+              menu.toggle();
+              return false;
+            }
+            
+            // Escape key to close
+            if (e.key === 'Escape' && menu.visible) {
+              e.preventDefault();
+              menu.hide();
+            }
+          });
+          
+          // ── CLOSE BUTTON ──
+          const closeBtn = container.querySelector('.menu-close');
+          if (closeBtn) {
+            closeBtn.addEventListener('click', () => menu.hide());
+            console.log('[Menu] Close button bound');
+          }
+          
+          // ── ZOOM CONTROLS ──
+          let zoomLevel = parseInt(localStorage.getItem('menu_zoom')) || 100;
+          const zoomDisplay = container.querySelector('#zoom-display');
+          const zoomIn = container.querySelector('#zoom-in');
+          const zoomOut = container.querySelector('#zoom-out');
+          const zoomReset = container.querySelector('#zoom-reset');
+          
+          function updateZoom() {
+            if (zoomDisplay) {
+              zoomDisplay.textContent = zoomLevel + '%';
+            }
+            document.body.style.zoom = zoomLevel / 100;
+            localStorage.setItem('menu_zoom', zoomLevel);
+          }
+          
+          if (zoomIn) {
+            zoomIn.addEventListener('click', () => {
+              if (zoomLevel < 200) {
+                zoomLevel += 10;
+                updateZoom();
+              }
+            });
+          }
+          
+          if (zoomOut) {
+            zoomOut.addEventListener('click', () => {
+              if (zoomLevel > 50) {
+                zoomLevel -= 10;
+                updateZoom();
+              }
+            });
+          }
+          
+          if (zoomReset) {
+            zoomReset.addEventListener('click', () => {
+              zoomLevel = 100;
+              updateZoom();
+            });
+          }
+          
+          updateZoom();
+          console.log('[Menu] Zoom controls bound');
+          
+          // ── MENU ITEMS WITH DATA-ACTION ──
+          container.querySelectorAll('[data-action]').forEach((item) => {
+            item.addEventListener('click', () => {
+              const action = item.dataset.action;
+              console.log('[Menu] Action:', action);
+              switch (action) {
+                case 'close':
+                  menu.hide();
+                  break;
+                case 'reload':
+                  location.reload();
+                  break;
+                case 'about':
+                  alert('Ubuntu Client v1.0.0\\nCreated by OBS-Akuma');
+                  break;
+                case 'discord':
+                  window.open('https://discord.gg/r6S3mMyT4K', '_blank');
+                  break;
+                default:
+                  console.log('[Menu] Unknown action:', action);
+              }
+            });
+          });
+          
+          // ── SETTING INPUTS ──
+          container.querySelectorAll('.setting-input').forEach((input) => {
+            const saved = localStorage.getItem('menu_' + input.id);
+            if (saved) {
+              input.value = saved;
+            }
+            input.addEventListener('change', () => {
+              localStorage.setItem('menu_' + input.id, input.value);
+              console.log('[Menu] Setting', input.id, '=', input.value);
+            });
+          });
+          
+          // ── SELECT DROPDOWNS ──
+          container.querySelectorAll('.setting-select').forEach((select) => {
+            const saved = localStorage.getItem('menu_' + select.id);
+            if (saved) {
+              select.value = saved;
+            }
+            select.addEventListener('change', () => {
+              localStorage.setItem('menu_' + select.id, select.value);
+              console.log('[Menu] Setting', select.id, '=', select.value);
+            });
+          });
+          
+          console.log('[Menu] Menu system initialized successfully!');
+          console.log('[Menu] Right click or Right Shift to open');
+        } catch (e) {
+          console.error('[Menu] Failed to initialize menu:', e);
+          console.error('[Menu] Stack:', e.stack);
+        }
+      }
+      
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMenu);
+      } else {
+        initMenu();
+      }
+    })();
+  `;
+
+  // ─── TOKEN INJECTION SCRIPT ───
+  const injectionScript = `
+    (function() {
+      console.log(' Token injection starting...');
+      
+      let tokenSaved = false;
+      
+      if (!window.electronAPI) {
+        window.electronAPI = {
+          saveToken: (token) => {
+            if (tokenSaved) {
+              console.log(' Token already saved, skipping duplicate');
+              return;
+            }
+            
+            if (window.require) {
+              try {
+                const { ipcRenderer } = window.require('electron');
+                ipcRenderer.send('save-token-request', token);
+                tokenSaved = true;
+                console.log(' Token sent to launcher');
+              } catch(e) {
+                console.error(' Failed to send token:', e);
+              }
+            }
+          }
+        };
+      }
+      
+      if (!window._localStorageOverridden) {
+        window._localStorageOverridden = true;
+        const originalSetItem = localStorage.setItem;
+        localStorage.setItem = function(key, value) {
+          originalSetItem.call(this, key, value);
+          if (value && (key === 'token' || key === 'Ubuntu_token')) {
+            console.log(' Token saved with key:', key);
+            if (window.electronAPI && window.electronAPI.saveToken) {
+              window.electronAPI.saveToken(value);
+            }
+          }
+        };
+      }
+      
+      const token = ${JSON.stringify(token)};
+      if (token) {
+        const existingToken = localStorage.getItem('token');
+        if (existingToken !== token) {
+          localStorage.setItem('token', token);
+          localStorage.setItem('Ubuntu_token', token);
+          console.log(' Injected token from file on game load');
+        } else {
+          console.log(' Token already exists, skipping injection');
+        }
+      } else {
+        console.log(' No token to inject');
+      }
+      
+      if (!window._storageListenerAdded) {
+        window._storageListenerAdded = true;
+        window.addEventListener('storage', function(e) {
+          if (e.newValue && (e.key === 'token' || e.key === 'Ubuntu_token') && e.newValue !== e.oldValue) {
+            console.log(' Token changed in storage');
+            if (window.electronAPI && window.electronAPI.saveToken) {
+              window.electronAPI.saveToken(e.newValue);
+            }
+          }
+        });
+      }
+      
+      console.log(' Token injection complete');
+    })();
+  `;
+
+  // ─── GUN TRACKER SCRIPT ───
   const gunTrackerScript = `
     (function() {
       console.log(' Gun Tracker starting...');
+      console.log(' Tracking kills for player: ${targetPlayer}');
       
-      // Flag to prevent duplicate saves
       let isSaving = false;
       let saveTimeout = null;
       
@@ -129,7 +438,6 @@ function createGameWindow() {
       }
 
       function saveToFile(data) {
-        // Prevent multiple rapid saves
         if (isSaving) {
           console.log(' Save already in progress, queuing...');
           if (saveTimeout) clearTimeout(saveTimeout);
@@ -147,7 +455,6 @@ function createGameWindow() {
             ipcRenderer.send('save-activity-data', data);
             console.log(' IPC message sent');
             
-            // Reset the saving flag after a delay
             setTimeout(() => {
               isSaving = false;
             }, 1000);
@@ -176,7 +483,7 @@ function createGameWindow() {
       }
 
       const GUN_DATA_URL = 'https://raw.githubusercontent.com/OBS-Akuma/KirkaBadges/refs/heads/main/Json/gd.json';
-      const TARGET_PLAYER = '${targetPlayer || 'Akuma'}';
+      const TARGET_PLAYER = '${targetPlayer}';
 
       let gunDataMap = {};
       let processedKills = new Set();
@@ -310,7 +617,7 @@ function createGameWindow() {
         return observer;
       }
 
-      function getAkumaStats() {
+      function getStats() {
         console.log(' Current stats for', TARGET_PLAYER + ':', stats);
         return stats;
       }
@@ -345,7 +652,7 @@ function createGameWindow() {
         console.log(' Stats will be saved to: Documents/Ubuntu/Activity.json');
       }
 
-      window.getAkumaStats = getAkumaStats;
+      window.getStats = getStats;
       window.clearStats = clearStats;
       window.exportStats = exportStats;
       window.scanForKills = scanForKills;
@@ -358,92 +665,12 @@ function createGameWindow() {
     })();
   `;
 
-  // ── FIXED INJECTION SCRIPT - Prevents duplicate accounts ──
-  const injectionScript = `
-    (function() {
-      console.log(' Token injection starting...');
-      
-      // Flag to prevent duplicate token saves
-      let tokenSaved = false;
-      
-      if (!window.electronAPI) {
-        window.electronAPI = {
-          saveToken: (token) => {
-            // Only save if we haven't already saved this token
-            if (tokenSaved) {
-              console.log(' Token already saved, skipping duplicate');
-              return;
-            }
-            
-            if (window.require) {
-              try {
-                const { ipcRenderer } = window.require('electron');
-                ipcRenderer.send('save-token-request', token);
-                tokenSaved = true;
-                console.log(' Token sent to launcher');
-              } catch(e) {
-                console.error(' Failed to send token:', e);
-              }
-            }
-          }
-        };
-      }
-      
-      // Only override localStorage.setItem once
-      if (!window._localStorageOverridden) {
-        window._localStorageOverridden = true;
-        const originalSetItem = localStorage.setItem;
-        localStorage.setItem = function(key, value) {
-          originalSetItem.call(this, key, value);
-          // Only trigger on specific token keys and if value exists
-          if (value && (key === 'token' || key === 'Ubuntu_token')) {
-            console.log(' Token saved with key:', key);
-            if (window.electronAPI && window.electronAPI.saveToken) {
-              window.electronAPI.saveToken(value);
-            }
-          }
-        };
-      }
-      
-      const token = ${JSON.stringify(token)};
-      if (token) {
-        // Check if token already exists before injecting
-        const existingToken = localStorage.getItem('token');
-        if (existingToken !== token) {
-          localStorage.setItem('token', token);
-          localStorage.setItem('Ubuntu_token', token);
-          console.log(' Injected token from file on game load');
-        } else {
-          console.log(' Token already exists, skipping injection');
-        }
-      } else {
-        console.log(' No token to inject');
-      }
-      
-      // Only add storage event listener once
-      if (!window._storageListenerAdded) {
-        window._storageListenerAdded = true;
-        window.addEventListener('storage', function(e) {
-          // Only process if the token actually changed
-          if (e.newValue && (e.key === 'token' || e.key === 'Ubuntu_token') && e.newValue !== e.oldValue) {
-            console.log(' Token changed in storage');
-            if (window.electronAPI && window.electronAPI.saveToken) {
-              window.electronAPI.saveToken(e.newValue);
-            }
-          }
-        });
-      }
-      
-      console.log(' Token injection complete');
-    })();
-  `;
-
-  const combinedScript = injectionScript + '\n' + gunTrackerScript;
+  const combinedScript = injectionScript + '\n' + gunTrackerScript + '\n' + menuScript;
 
   // ── SETTINGS ──
   const settingsPath = path.join(ubuntuFolder, 'settings.txt');
   let proxyUrl = 'https://kirka.io/';
-  let discordRpcEnabled = true; // Default to true
+  let discordRpcEnabled = true;
   
   try {
     if (fs.existsSync(settingsPath)) {
@@ -459,19 +686,17 @@ function createGameWindow() {
   if (discordRpcEnabled && !discordRPC) {
     try {
       discordRPC = new DiscordRPC();
-      // Attach to gameWindow for access
       gameWindow.DiscordRPC = discordRPC;
-      console.log('✅ Discord RPC initialized for game window');
+      console.log(' Discord RPC initialized for game window');
     } catch (e) {
-      console.error('❌ Failed to initialize Discord RPC:', e);
+      console.error(' Failed to initialize Discord RPC:', e);
     }
   }
 
   // ── LISTEN FOR URL CHANGES ──
   gameWindow.webContents.on('did-navigate-in-page', (e, url) => {
-    console.log('📍 URL changed to:', url);
+    console.log(' URL changed to:', url);
     
-    // ── DISCORD RPC UPDATE ──
     if (discordRpcEnabled && gameWindow.DiscordRPC) {
       const base_url = proxyUrl;
       const stateMap = {
@@ -510,8 +735,6 @@ function createGameWindow() {
         if (profileMatch && profileMatch[1]) {
           const shortId = profileMatch[1];
           state = `Viewing player profile #${shortId}`;
-          
-          // Set the profile picture as small image with random number to bypass cache
           const randomNumbers = Math.floor(Math.random() * 1000000);
           const activity = gameWindow.DiscordRPC.defaultActivity();
           activity.state = state;
@@ -546,17 +769,15 @@ function createGameWindow() {
       }
     }
     
-    // Send to renderer
     gameWindow.webContents.send('url-change', url);
   });
 
+  // ── PAGE LOAD HANDLER ──
   gameWindow.webContents.on('did-finish-load', () => {
     console.log(' Game loaded, injecting scripts');
     
-    // Update Discord RPC with initial state
     const currentUrl = gameWindow.webContents.getURL();
     
-    // ── DISCORD RPC INITIAL UPDATE ──
     if (discordRpcEnabled && gameWindow.DiscordRPC) {
       const base_url = proxyUrl;
       const stateMap = {
@@ -630,7 +851,9 @@ function createGameWindow() {
     }
     
     gameWindow.webContents.executeJavaScript(combinedScript)
-      .then(() => console.log(' Scripts executed successfully'))
+      .then(() => {
+        console.log(' Scripts executed successfully');
+      })
       .catch(err => console.error(' Script execution failed:', err));
   });
 

@@ -44,7 +44,7 @@
             <i class="fas fa-user" style="font-size:0.65rem;" id="userAvatarIcon"></i>
             <img id="userAvatarImg" src="" alt="" style="display:none;width:24px;height:24px;border-radius:4px;object-fit:cover;">
         </div>
-        <div class="user-name" id="userNameDisplay">Guest</div>
+        <div class="user-name" id="userNameDisplay">Newbie</div>
         <div class="user-level" id="userLevelDisplay" style="display:none;"></div>
         <i class="fas fa-chevron-down arrow" id="dropdownArrow"></i>
     </div>
@@ -117,7 +117,7 @@
                     <div class="launch-grid">
                         <div class="launch-left">
                             <div class="version-tabs">
-                                <button class="ver-tab active" id="version-tag">0.0.1</button>
+                                <button class="ver-tab active" id="version-tag">?.?.?</button>
                             </div>
 
                             
@@ -129,16 +129,10 @@
                             <div class="client-description">
                                 Ubuntu Client is a custom Electron-based Kirka.io client focused on advanced UI customization And adding the features everyone wanted But never got.
                             </div>
+                            <div class="client-description">
+                                Ubuntu Client is Still in beta So erors > bugs will be found.
+                            </div>
 
-                            <div class="placeholder-card">
-                                <div class="placeholder-line" style="width:65%;"></div>
-                                <div class="placeholder-line short"></div>
-                                <div class="placeholder-line medium"></div>
-                            </div>
-                            <div class="placeholder-card">
-                                <div class="placeholder-line" style="width:50%;"></div>
-                                <div class="placeholder-line small"></div>
-                            </div>
                         </div>
 
                         <div class="news-panel">
@@ -168,6 +162,19 @@
                         </div>
                     </div>
 
+                    <!-- Performance Settings -->
+                    <div class="content-title">Performance</div>
+                    <div class="settings-group">
+                        <div class="option">
+                            <div class="left"><span>Unlimited FPS</span><span class="description">Remove the 60fps cap for smoother gameplay</span></div>
+                            <div class="checkbox"><input type="checkbox" id="unlimited_fps" checked><label for="unlimited_fps"></label></div>
+                        </div>
+                        <div class="option">
+                            <div class="left"><span>In-Process GPU</span><span class="description">Run GPU in the same process for better performance</span></div>
+                            <div class="checkbox"><input type="checkbox" id="in_process_gpu" checked><label for="in_process_gpu"></label></div>
+                        </div>
+                    </div>
+
                     <!-- Keybind Settings -->
                     <div class="settings-group">
                         <div class="option">
@@ -192,29 +199,34 @@
                     <div class="content-title">News Preferences</div>
                     <div class="settings-group">
                         <div class="option">
+                            <div class="left"><span>Enable News</span><span class="description">Toggle news display on/off</span></div>
+                            <div class="checkbox"><input type="checkbox" id="newsToggle" checked><label for="newsToggle"></label></div>
+                        </div>
+                        <div class="option">
                             <div class="left"><span>General News</span><span class="description">Froke-related news</span></div>
-                            <div class="checkbox"><input type="checkbox" id="general_news"><label for="general_news"></label></div>
+                            <div class="checkbox"><input type="checkbox" class="category-toggle" id="general_news" data-category="general"><label for="general_news"></label></div>
                         </div>
                         <div class="option">
                             <div class="left"><span>Promotional News</span><span class="description">Live events</span></div>
-                            <div class="checkbox"><input type="checkbox" id="promotional_news"><label for="promotional_news"></label></div>
+                            <div class="checkbox"><input type="checkbox" class="category-toggle" id="promotional_news" data-category="promotional"><label for="promotional_news"></label></div>
                         </div>
                         <div class="option">
                             <div class="left"><span>Event News</span><span class="description">Events you can participate in</span></div>
-                            <div class="checkbox"><input type="checkbox" id="event_news"><label for="event_news"></label></div>
+                            <div class="checkbox"><input type="checkbox" class="category-toggle" id="event_news" data-category="event"><label for="event_news"></label></div>
                         </div>
                         <div class="option">
                             <div class="left"><span>Alerts</span><span class="description">Important alerts</span></div>
-                            <div class="checkbox"><input type="checkbox" id="alert_news"><label for="alert_news"></label></div>
+                            <div class="checkbox"><input type="checkbox" class="category-toggle" id="alert_news" data-category="alert"><label for="alert_news"></label></div>
                         </div>
                     </div>
-                                         <div class="content-title">Streamer Mode</div>
+                    
+                    <div class="content-title">Streamer Mode</div>
                     <div class="settings-group">
                         <div class="option">
-                            <div class="left"><span>hide Usernames</span><span class="description">Hides All Usernames And short ids</span></div>
+                            <div class="left"><span>Hide Usernames</span><span class="description">Hides All Usernames And short ids</span></div>
                             <div class="checkbox"><input type="checkbox" id="Hide_usernames"><label for="Hide_usernames"></label></div>
                         </div>
-                        </div>
+                    </div>
                 </div>
 
                 

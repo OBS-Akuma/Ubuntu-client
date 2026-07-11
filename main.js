@@ -1,43 +1,66 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const fetch = require('node-fetch');
 const { createGameWindow } = require('./game.js');
+const { applySwitches, applyWindowSettings, getDefaultSettings } = require('./Switches.js');
 
 let splashWindow = null;
 let gameWindow = null;
 
+// Load settings and apply switches BEFORE app is ready
+function loadAndApplySwitches() {
+  try {
+    const settingsPath = getSettingsFilePath();
+    let settings = {};
+    
+    if (fs.existsSync(settingsPath)) {
+      const data = fs.readFileSync(settingsPath, 'utf8');
+      const fileSettings = JSON.parse(data);
+      const defaults = getDefaultSettings();
+      settings = { ...defaults, ...fileSettings };
+      console.log('[Main] Loaded settings for switches:', settings);
+    } else {
+      settings = getDefaultSettings();
+      console.log('[Main] Using default settings for switches');
+    }
+    
+    // Apply the switches
+    applySwitches(settings);
+    return settings;
+  } catch (e) {
+    console.error('[Main] Failed to load settings for switches:', e);
+    const defaults = getDefaultSettings();
+    applySwitches(defaults);
+    return defaults;
+  }
+}
+
 function getSettingsFilePath() {
   const documentsPath = app.getPath('documents');
   const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
-  
   if (!fs.existsSync(ubuntuFolder)) {
     fs.mkdirSync(ubuntuFolder, { recursive: true });
-    console.log(' Created Ubuntu folder at:', ubuntuFolder);
+    console.log('Created Ubuntu folder at:', ubuntuFolder);
   }
-  
   return path.join(ubuntuFolder, 'settings.txt');
 }
-
 
 function getTokenFilePath() {
   const documentsPath = app.getPath('documents');
   const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
-  
   if (!fs.existsSync(ubuntuFolder)) {
     fs.mkdirSync(ubuntuFolder, { recursive: true });
-    console.log(' Created Ubuntu folder at:', ubuntuFolder);
+    console.log('Created Ubuntu folder at:', ubuntuFolder);
   }
-  
-  const tokenPath = path.join(ubuntuFolder, 'token.txt');
-  return tokenPath;
+  return path.join(ubuntuFolder, 'token.txt');
 }
-
 
 function createSplashWindow() {
   splashWindow = new BrowserWindow({
     icon: path.join(__dirname, "/assets/icon.png"),
-    width: 920,
-    height: 620,
+    width: 1120,
+    height: 720,
     frame: false,
     transparent: true,
     resizable: false,
@@ -47,18 +70,10 @@ function createSplashWindow() {
       contextIsolation: false,
     },
   });
-
   splashWindow.loadFile(path.join(__dirname, 'Splash.html'));
-
-  splashWindow.once('ready-to-show', () => {
-    splashWindow.show();
-  });
-
-  splashWindow.on('closed', () => {
-    splashWindow = null;
-  });
+  splashWindow.once('ready-to-show', () => splashWindow.show());
+  splashWindow.on('closed', () => { splashWindow = null; });
 }
-
 
 ipcMain.handle('splash:get-version', () => {
   try {
@@ -68,31 +83,24 @@ ipcMain.handle('splash:get-version', () => {
   }
 });
 
-
 ipcMain.handle('load-settings', async () => {
   try {
     const filePath = getSettingsFilePath();
     if (fs.existsSync(filePath)) {
       const data = fs.readFileSync(filePath, 'utf8');
       const settings = JSON.parse(data);
-      
-
       const defaultSettings = {
         proxy: 'https://kirka.io/',
-        discord_rpc: true
+        discord_rpc: true,
+        unlimited_fps: true,
+        in_process_gpu: true
       };
-      
-
       const mergedSettings = { ...defaultSettings, ...settings };
-      
       return { success: true, settings: mergedSettings };
     }
-    return { success: true, settings: { 
-      proxy: 'https://kirka.io/',
-      discord_rpc: true
-    } };
+    return { success: true, settings: { proxy: 'https://kirka.io/', discord_rpc: true, unlimited_fps: true, in_process_gpu: true } };
   } catch (e) {
-    console.error(' Failed to load settings:', e);
+    console.error('Failed to load settings:', e);
     return { success: false, error: e.message };
   }
 });
@@ -101,41 +109,36 @@ ipcMain.handle('save-settings', async (event, settings) => {
   try {
     const filePath = getSettingsFilePath();
     fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf8');
-    console.log(' Settings saved to:', filePath);
+    console.log('Settings saved to:', filePath);
+    
+    // Re-apply switches if they changed
+    applySwitches(settings);
+    
     return { success: true };
   } catch (e) {
-    console.error(' Failed to save settings:', e);
+    console.error('Failed to save settings:', e);
     return { success: false, error: e.message };
   }
 });
 
-
-
-
 async function getAccountsFromFile() {
   try {
     const filePath = getTokenFilePath();
-    
     if (!fs.existsSync(filePath)) {
       fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf8');
       return [];
     }
-    
     const data = fs.readFileSync(filePath, 'utf8');
     if (!data || data.trim() === '') {
       fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf8');
       return [];
     }
-    
     const accounts = JSON.parse(data);
-    if (Array.isArray(accounts)) {
-      return accounts;
-    } else {
-      fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf8');
-      return [];
-    }
+    if (Array.isArray(accounts)) return accounts;
+    fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf8');
+    return [];
   } catch (e) {
-    console.error(' Failed to get accounts:', e);
+    console.error('Failed to get accounts:', e);
     try {
       const filePath = getTokenFilePath();
       fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf8');
@@ -146,87 +149,63 @@ async function getAccountsFromFile() {
   }
 }
 
-
 async function saveAccountsToFile(accounts) {
   try {
-    if (!accounts || !Array.isArray(accounts)) {
-      return false;
-    }
+    if (!accounts || !Array.isArray(accounts)) return false;
     const filePath = getTokenFilePath();
     fs.writeFileSync(filePath, JSON.stringify(accounts, null, 2), 'utf8');
     return true;
   } catch (e) {
-    console.error(' Failed to save accounts:', e);
+    console.error('Failed to save accounts:', e);
     return false;
   }
 }
-
-
-
 
 ipcMain.handle('get-accounts', async () => {
   const accounts = await getAccountsFromFile();
   return { success: true, accounts };
 });
 
-
 ipcMain.handle('save-accounts', async (event, accounts) => {
   const success = await saveAccountsToFile(accounts);
   if (success) {
-    console.log(' Accounts saved, count:', accounts.length);
+    console.log('Accounts saved, count:', accounts.length);
     return { success: true };
   }
   return { success: false, error: 'Failed to save accounts' };
 });
 
-
-
-
 ipcMain.handle('save-token', async (event, token) => {
   try {
-    console.log(' save-token called (legacy)');
+    console.log('save-token called (legacy)');
     const tokenStr = String(token || '').trim();
     if (!tokenStr) {
       return { success: false, error: 'Token is empty' };
     }
-    
-    
+
     const accounts = await getAccountsFromFile();
     const activeIndex = accounts.findIndex(a => a.active === true);
-    
+
     if (activeIndex !== -1) {
-      
       accounts[activeIndex].token = tokenStr;
       await saveAccountsToFile(accounts);
-      console.log(' Active account token updated');
+      console.log('Active account token updated');
     } else if (accounts.length > 0) {
-      
       accounts[0].token = tokenStr;
       accounts[0].active = true;
       await saveAccountsToFile(accounts);
-      console.log(' First account token updated and set as active');
+      console.log('First account token updated and set as active');
     } else {
-      
-      
-      accounts.push({ 
-        token: tokenStr, 
-        active: true,
-        name: 'Unknown',
-        tag: '—',
-        level: null,
-        userId: 'unknown'
-      });
+      accounts.push({ token: tokenStr, active: true, name: 'Unknown', tag: '—', level: null, userId: 'unknown' });
       await saveAccountsToFile(accounts);
-      console.log(' New account created with token');
+      console.log('New account created with token');
     }
-    
     return { success: true };
   } catch (e) {
-    console.error(' Failed to save token:', e);
+    console.error('Failed to save token:', e);
     return { success: false, error: e.message };
   }
 });
-
 
 ipcMain.handle('get-token', async () => {
   try {
@@ -241,20 +220,18 @@ ipcMain.handle('get-token', async () => {
   }
 });
 
-
 ipcMain.handle('clear-token', async () => {
   try {
     const filePath = getTokenFilePath();
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
-      console.log(' Token file deleted');
+      console.log('Token file deleted');
     }
     return { success: true };
   } catch (e) {
     return { success: false, error: e.message };
   }
 });
-
 
 ipcMain.handle('get-active-token', async () => {
   try {
@@ -269,27 +246,26 @@ ipcMain.handle('get-active-token', async () => {
   }
 });
 
-
 ipcMain.on('update-game-token', (event, token) => {
-  console.log(' update-game-token received in main process');
-  console.log(' Token:', token ? token.substring(0, 30) + '...' : 'null');
-  console.log(' Game window exists:', !!gameWindow);
-  
+  console.log('Received update-game-token');
+  console.log('Token:', token ? token.substring(0, 30) + '...' : 'null');
+  console.log('Game window exists:', !!gameWindow);
+
   if (gameWindow && !gameWindow.isDestroyed()) {
-    console.log(' Game window exists, updating token...');
+    console.log('Updating token in game window...');
     gameWindow.webContents.executeJavaScript(`
       (function() {
         try {
           const token = ${JSON.stringify(token)};
-          console.log(' Updating game localStorage with token:', token ? 'present' : 'null');
+          console.log('Updating localStorage with token:', token ? 'present' : 'null');
           if (token) {
             localStorage.setItem('token', token);
             localStorage.setItem('Ubuntu_token', token);
-            console.log(' Game token updated to:', token.substring(0, 20) + '...');
+            console.log('Game token updated to:', token.substring(0, 20) + '...');
           } else {
             localStorage.removeItem('token');
             localStorage.removeItem('Ubuntu_token');
-            console.log(' Game token cleared');
+            console.log('Game token cleared');
           }
           window.dispatchEvent(new StorageEvent('storage', {
             key: 'token',
@@ -304,123 +280,225 @@ ipcMain.on('update-game-token', (event, token) => {
         }
       })();
     `).then(result => {
-      console.log(' Game token update result:', result);
+      console.log('Game token update result:', result);
     }).catch(err => {
-      console.error(' Failed to execute token update in game:', err);
+      console.error('Failed to execute token update in game:', err);
     });
   } else {
-    console.log(' No game window to update - token will be used when game launches');
+    console.log('No game window to update - token will be used when game launches');
   }
 });
 
-
-ipcMain.on('save-token-request', async (event, token) => {
+async function fetchProfileFromAPI(userId) {
   try {
-    console.log(' save-token-request received from game');
-    const tokenStr = String(token || '').trim();
-    if (!tokenStr) {
-      console.log(' Empty token received, ignoring');
-      return;
-    }
-    
-    let accounts = await getAccountsFromFile();
-    
-    try {
-      const payload = JSON.parse(Buffer.from(tokenStr.split('.')[1], 'base64').toString());
-      const userId = payload.sub;
-      
-      const existingIndex = accounts.findIndex(a => a.userId === userId);
-      
-      const profile = await fetchProfile(tokenStr);
-      
-      if (existingIndex !== -1) {
-        accounts[existingIndex] = { 
-          ...accounts[existingIndex], 
-          ...profile, 
-          token: tokenStr,
-          active: true 
-        };
-        accounts.forEach((a, i) => {
-          if (i !== existingIndex) a.active = false;
-        });
-      } else {
-        accounts.push({ ...profile, token: tokenStr, active: true });
-        accounts.forEach((a, i) => {
-          if (i !== accounts.length - 1) a.active = false;
-        });
-      }
-      
-      await saveAccountsToFile(accounts);
-      
-      console.log(' Token saved from game window');
-      
-      if (splashWindow && !splashWindow.isDestroyed()) {
-        splashWindow.webContents.send('token-updated', tokenStr);
-        splashWindow.webContents.send('accounts-updated', accounts);
-      }
-    } catch (e) {
-      console.error(' Failed to process token:', e);
-    }
-  } catch (e) {
-    console.error(' Failed to save token from game window:', e);
-  }
-});
+    console.log('=========================================');
+    console.log(' FETCHING PROFILE FROM API');
+    console.log('=========================================');
+    console.log('userId:', userId);
 
+    const isShortId = userId.length < 10 && !userId.includes('-');
+    console.log(` Detected ID type: ${isShortId ? 'SHORT' : 'LONG'}`);
+    console.log(` Sending: isShortId = ${isShortId}`);
 
-async function fetchProfile(token) {
-  try {
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+    const requestBody = JSON.stringify({ userId, isShortId });
+    console.log(' Request body:', requestBody);
+
     const response = await fetch('https://www.smudgy.store/api/getprofile', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify({
-        userId: payload.sub,
-        isShortId: false
-      })
+      body: requestBody
     });
-    
-    const result = await response.json();
-    if (result.success && result.data) {
-      return {
-        tag: result.data.shortId || '',
-        name: result.data.name || '',
-        level: result.data.level || null,
-        userId: result.data.userId || payload.sub || ''
-      };
+    console.log(' Response status:', response.status);
+    if (!response.ok) {
+      console.error(' HTTP Error:', response.status);
+      throw new Error(`HTTP ${response.status}`);
     }
-  } catch (e) {
-    console.error('Failed to fetch profile:', e);
+
+    const result = await response.json();
+    console.log(' Full API Response:', JSON.stringify(result, null, 2));
+    if (result && result.success && result.data) {
+      const data = result.data;
+      console.log(' PROFILE FOUND!');
+      console.log('   Name:', data.name);
+      console.log('   Tag:', data.shortId);
+      console.log('   Level:', data.level);
+      console.log('   ID:', data.id);
+      return {
+        tag: data.shortId || '',
+        name: data.name || '',
+        level: data.level !== undefined ? data.level : null,
+        userId: data.id || userId
+      };
+    } else {
+      console.error(' API returned success:false or no data');
+      console.error('Result:', result);
+      return null;
+    }
+  } catch (error) {
+    console.error(' FETCH PROFILE FAILED:', error.message);
+    return null;
   }
-  return { tag: '', name: 'Unknown', level: null, userId: '' };
 }
 
+function decodeToken(token) {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) throw new Error('Invalid token format');
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+    console.log(' Token payload:', payload);
+    return payload;
+  } catch (error) {
+    console.error(' Failed to decode token:', error.message);
+    return null;
+  }
+}
 
-// Window control handlers for HTML buttons
+ipcMain.on('save-token-request', async (event, token) => {
+  try {
+    console.log('=========================================');
+    console.log(' SAVE TOKEN REQUEST RECEIVED');
+    console.log('=========================================');
+
+    const tokenStr = String(token || '').trim();
+    if (!tokenStr) {
+      console.log(' Empty token received, ignoring');
+      event.reply('save-token-reply', { success: false, error: 'Empty token' });
+      return;
+    }
+
+    console.log('Token length:', tokenStr.length);
+    console.log('Token preview:', tokenStr.substring(0, 40) + '...');
+
+    const payload = decodeToken(tokenStr);
+    if (!payload || !payload.sub) {
+      console.log(' Invalid token: no userId found');
+      event.reply('save-token-reply', { success: false, error: 'Invalid token' });
+      return;
+    }
+
+    const userId = payload.sub;
+    console.log(' User ID from token:', userId);
+
+    console.log(' Calling fetchProfileFromAPI...');
+    const profileData = await fetchProfileFromAPI(userId);
+    console.log(' fetchProfileFromAPI returned:', profileData);
+
+    let accounts = await getAccountsFromFile();
+    console.log(' Current accounts in file:', accounts.length);
+
+    let accountData;
+
+    if (profileData) {
+      accountData = {
+        tag: profileData.tag || '',
+        name: profileData.name || '',
+        level: profileData.level !== null ? profileData.level : null,
+        userId: profileData.userId || userId,
+        token: tokenStr,
+        active: true
+      };
+      console.log(' USING API DATA:');
+      console.log('   Name:', accountData.name);
+      console.log('   Tag:', accountData.tag);
+      console.log('   Level:', accountData.level);
+      console.log('   UserId:', accountData.userId);
+    } else {
+      console.log(' API returned null, using fallback data from token');
+      const subParts = userId.split('-');
+      let nameFromToken = subParts[0] || 'User';
+      let tagFromToken = subParts.length > 1 ? subParts[1].substring(0, 6) : '';
+
+      accountData = {
+        tag: tagFromToken || '',
+        name: nameFromToken || '',
+        level: null,
+        userId: userId,
+        token: tokenStr,
+        active: true
+      };
+      console.log(' FALLBACK DATA:');
+      console.log('   Name:', accountData.name);
+      console.log('   Tag:', accountData.tag);
+    }
+
+    console.log(' Final account data to save:', JSON.stringify(accountData, null, 2));
+
+    const existingIndex = accounts.findIndex(a => a.token === tokenStr);
+
+    if (existingIndex !== -1) {
+      accounts[existingIndex] = { ...accounts[existingIndex], ...accountData, active: true };
+      accounts.forEach((a, i) => { if (i !== existingIndex) a.active = false; });
+      console.log(' Updated existing account');
+    } else {
+      const existingByUserId = accounts.findIndex(a => a.userId === userId);
+      if (existingByUserId !== -1) {
+        accounts[existingByUserId] = { ...accounts[existingByUserId], ...accountData, active: true };
+        accounts.forEach((a, i) => { if (i !== existingByUserId) a.active = false; });
+        console.log(' Updated existing account by userId');
+      } else {
+        accounts.push(accountData);
+        accounts.forEach((a, i) => { if (i !== accounts.length - 1) a.active = false; });
+        console.log(' Added new account');
+      }
+    }
+
+    await saveAccountsToFile(accounts);
+    console.log(' Accounts saved to file, total:', accounts.length);
+
+    const savedAccount = accounts.find(a => a.active === true);
+    if (savedAccount) {
+      console.log(' ACTIVE ACCOUNT SAVED:');
+      console.log(`   Name: ${savedAccount.name}`);
+      console.log(`   Tag: ${savedAccount.tag}`);
+      console.log(`   Level: ${savedAccount.level}`);
+      console.log(`   UserId: ${savedAccount.userId}`);
+    }
+
+    event.reply('save-token-reply', { success: true, profile: profileData || accountData });
+
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.webContents.send('token-updated', tokenStr);
+      splashWindow.webContents.send('accounts-updated', accounts);
+    }
+
+    if (gameWindow && !gameWindow.isDestroyed()) {
+      gameWindow.webContents.send('token-updated', tokenStr);
+      gameWindow.webContents.send('accounts-updated', accounts);
+    }
+
+    console.log('=========================================');
+    console.log(' TOKEN SAVE COMPLETE');
+    console.log('=========================================');
+  } catch (e) {
+    console.error(' Failed to save token:', e);
+    console.error('Stack:', e.stack);
+    event.reply('save-token-reply', { success: false, error: e.message });
+  }
+});
+
 ipcMain.on('window-minimize', () => {
-  console.log(' Minimize request received from HTML');
+  console.log('Minimize request received from HTML');
   if (splashWindow && !splashWindow.isDestroyed()) {
     splashWindow.minimize();
   }
 });
 
 ipcMain.on('window-close', () => {
-  console.log(' Close request received from HTML');
+  console.log('Close request received from HTML');
   app.quit();
 });
 
-// Keep existing launcher-close handler for compatibility
 ipcMain.on('launcher-close', () => {
-  console.log(' Close request received (launcher-close)');
+  console.log('Close request received (launcher-close)');
   app.quit();
 });
-
 
 ipcMain.on('launch-game', () => {
-  console.log(' Launch game request received');
-  
+  console.log('Launch game request received');
+
   if (gameWindow) {
     gameWindow.show();
     gameWindow.focus();
@@ -431,15 +509,32 @@ ipcMain.on('launch-game', () => {
     return;
   }
 
-  gameWindow = createGameWindow();
+  // Get settings for window
+  let windowSettings = {};
+  try {
+    const settingsPath = getSettingsFilePath();
+    if (fs.existsSync(settingsPath)) {
+      const data = fs.readFileSync(settingsPath, 'utf8');
+      const settings = JSON.parse(data);
+      const defaults = getDefaultSettings();
+      windowSettings = { ...defaults, ...settings };
+    }
+  } catch (e) {
+    console.error('Failed to load settings for game window:', e);
+    windowSettings = getDefaultSettings();
+  }
+
+  gameWindow = createGameWindow(windowSettings);
+
+  // Apply window settings
+  applyWindowSettings(gameWindow, windowSettings);
 
   gameWindow.webContents.once('did-finish-load', () => {
-    console.log(' Game finished loading, injecting token...');
-    
+    console.log('Game finished loading, injecting token...');
     getAccountsFromFile().then(accounts => {
       const active = accounts.find(a => a.active === true);
       if (active && active.token) {
-        console.log(' Injecting active token on game load for:', active.name, '#', active.tag);
+        console.log('Injecting active token on game load for:', active.name, '#', active.tag);
         gameWindow.webContents.executeJavaScript(`
           (function() {
             try {
@@ -447,7 +542,7 @@ ipcMain.on('launch-game', () => {
               if (token) {
                 localStorage.setItem('token', token);
                 localStorage.setItem('Ubuntu_token', token);
-                console.log(' Token injected on game load');
+                console.log('Token injected on game load');
               }
             } catch(e) {
               console.error('Failed to inject token:', e);
@@ -455,10 +550,10 @@ ipcMain.on('launch-game', () => {
           })();
         `).catch(err => console.error('Failed to inject token on load:', err));
       } else {
-        console.log(' No active token to inject');
+        console.log('No active token to inject');
       }
     });
-    
+
     if (splashWindow) {
       splashWindow.close();
       splashWindow = null;
@@ -477,38 +572,37 @@ ipcMain.on('launch-game', () => {
   });
 });
 
-
+// Apply switches BEFORE app is ready
+const appSettings = loadAndApplySwitches();
 
 app.whenReady().then(() => {
-  console.log(' App ready');
-  
+  console.log('App is ready');
+
   const tokenPath = getTokenFilePath();
-  console.log(' Token path:', tokenPath);
-  
+  console.log('Token path:', tokenPath);
+
   try {
     if (!fs.existsSync(tokenPath)) {
       fs.writeFileSync(tokenPath, JSON.stringify([], null, 2), 'utf8');
-      console.log(' Created empty token file');
+      console.log('Created empty token file');
     } else {
       const data = fs.readFileSync(tokenPath, 'utf8');
       if (!data || data.trim() === '') {
         fs.writeFileSync(tokenPath, JSON.stringify([], null, 2), 'utf8');
-        console.log(' Reset empty token file');
+        console.log('Reset empty token file');
       } else {
         JSON.parse(data);
-        console.log(' Token file is valid');
+        console.log('Token file is valid');
       }
     }
   } catch (e) {
-    console.log(' Token file invalid, resetting');
+    console.log('Token file invalid, resetting');
     fs.writeFileSync(tokenPath, JSON.stringify([], null, 2), 'utf8');
   }
-  
+
   createSplashWindow();
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  if (process.platform !== 'darwin') app.quit();
 });
