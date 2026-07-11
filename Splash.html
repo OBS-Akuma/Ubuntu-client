@@ -17,9 +17,9 @@
             <div class="client-icon">
                 <img src="assets\icon.png"
                      alt="ubuntu"
-                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'fallback-text\'>U</div>';">
+                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'fallback-text\'>S</div>';">
             </div>
-            <div class="client-name">ubuntu client</div>
+            <div class="client-name">Ubuntu Client</div>
         </div>
 
         <div class="top-bar-divider"></div>
@@ -79,9 +79,6 @@
             <button class="tab-btn active" data-tab="launch" data-label="Launch" title="Launch">
                 <i class="fas fa-play"></i>
             </button>
-            <button class="tab-btn" data-tab="settings" data-label="Settings" title="Settings">
-                <i class="fas fa-cog"></i>
-            </button>
             <button class="tab-btn" data-tab="scripts" data-label="Scripts" title="Scripts">
                 <i class="fas fa-code"></i>
             </button>
@@ -102,7 +99,9 @@
             </button>
 
             <div class="sidebar-spacer"></div>
-
+            <button class="tab-btn" data-tab="settings" data-label="Settings" title="Settings">
+                <i class="fas fa-cog"></i>
+            </button>
             <button class="tab-btn" data-tab="credits" data-label="Credits" title="Credits">
                 <i class="fas fa-heart"></i>
             </button>
@@ -180,8 +179,7 @@
                     <!-- Account Settings -->
                     <div class="settings-group">
                         <div class="option">
-                            <div class="left"><span>Account Status</span><span class="description">Logged in via Kirka token</span></div>
-                            <div style="color:var(--green);font-size:0.8rem;font-weight:600;" id="accountStatus">Auto-detected</div>
+                            <div class="left"><span>Account Status</span><span class="description">Auto Logs users in</span></div>
                         </div>
                         <div class="option" id="tokenStatusRow" style="display:none;">
                             <div class="left"><span style="color:#555;">Logged in as</span><span class="description" id="tokenStatusName">—</span></div>
@@ -191,10 +189,8 @@
                         </div>
                     </div>
 
-                    <!-- News Settings -->
+                    <div class="content-title">News Preferences</div>
                     <div class="settings-group">
-                        <div class="settings-group-title">News Preferences</div>
-                        
                         <div class="option">
                             <div class="left"><span>General News</span><span class="description">Froke-related news</span></div>
                             <div class="checkbox"><input type="checkbox" id="general_news"><label for="general_news"></label></div>
@@ -212,6 +208,13 @@
                             <div class="checkbox"><input type="checkbox" id="alert_news"><label for="alert_news"></label></div>
                         </div>
                     </div>
+                                         <div class="content-title">Streamer Mode</div>
+                    <div class="settings-group">
+                        <div class="option">
+                            <div class="left"><span>hide Usernames</span><span class="description">Hides All Usernames And short ids</span></div>
+                            <div class="checkbox"><input type="checkbox" id="Hide_usernames"><label for="Hide_usernames"></label></div>
+                        </div>
+                        </div>
                 </div>
 
                 
@@ -253,7 +256,7 @@
                     <div class="faq-list">
                         <div class="faq-item">
                             <div class="faq-question">Is Ubuntu client safe?</div>
-                            <div class="faq-answer">Yes, Ubuntu client is safe because it's open source and used by many users.</div>
+                            <div class="faq-answer">Yes, Ubuntu client is safe as can be as it's open source</div>
                         </div>
                         <div class="faq-item">
                             <div class="faq-question">Does this client use my token?</div>
@@ -269,7 +272,7 @@
                         </div>
                         <div class="faq-item">
                             <div class="faq-question">Will I get banned for using Ubuntu client?</div>
-                            <div class="faq-answer">Not that we're aware of. If Kirka flags something, we will take action.</div>
+                            <div class="faq-answer">Not that we're aware of. If Xip or kirka staff flags something, we will take action.</div>
                         </div>
                     </div>
                 </div>
