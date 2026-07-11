@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Indie+Flower&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
 * {
     margin: 0;
     padding: 0;
@@ -31,8 +32,8 @@ body {
 }
 
 .launcher {
-    width: 1060px;
-    height: 600px;
+    width: 1160px;
+    height: 700px;
     background: var(--bg0);
     border-radius: 10px;
     overflow: hidden;
@@ -134,6 +135,7 @@ body {
 .top-bar-spacer { flex: 1; }
 
 .search-container {
+    font-family: 'Indie Flower', cursive, system-ui, sans-serif;
     display: flex;
     align-items: center;
     background: var(--bg2);
@@ -455,6 +457,7 @@ body {
 
 /* News panel (right column of launch) */
 .news-panel {
+    font-family: "Permanent Marker", cursive;
     background: var(--bg2);
     border-radius: 8px;
     border: 1px solid var(--border);
