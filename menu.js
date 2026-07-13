@@ -4,7 +4,7 @@ const path = require("path");
 
 class Menu {
   constructor() {
-    // Load HTML and CSS from local files
+
     this.menuCSS = fs.readFileSync(
       path.join(__dirname, "./assets/menu.css"),
       "utf8"
@@ -72,8 +72,8 @@ class Menu {
   init() {
     const root = this.root;
     
-    // ── KEYBINDS ──
-    // Right-click to toggle
+
+
     document.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -81,9 +81,9 @@ class Menu {
       return false;
     });
 
-    // Right Shift key to toggle
+
     document.addEventListener("keydown", (e) => {
-      // Check for Right Shift
+
       if (e.code === "ShiftRight" || (e.shiftKey && e.code === "ShiftRight")) {
         e.preventDefault();
         e.stopPropagation();
@@ -92,20 +92,20 @@ class Menu {
         return false;
       }
       
-      // Escape key to close
+
       if (e.key === "Escape" && this.menuVisible) {
         e.preventDefault();
         this.hide();
       }
     });
 
-    // ── CLOSE BUTTON ──
+
     const closeBtn = root.querySelector(".menu-close");
     if (closeBtn) {
       closeBtn.addEventListener("click", () => this.hide());
     }
 
-    // ── SETTING INPUTS ──
+
     const inputs = root.querySelectorAll(".setting-input");
     inputs.forEach((input) => {
       input.addEventListener("change", () => {
@@ -120,7 +120,7 @@ class Menu {
       });
     });
 
-    // ── SELECT DROPDOWNS ──
+
     const selects = root.querySelectorAll(".setting-select");
     selects.forEach((select) => {
       select.addEventListener("change", () => {
@@ -135,7 +135,7 @@ class Menu {
       });
     });
 
-    // ── ZOOM CONTROLS ──
+
     let zoomLevel = 100;
     const zoomDisplay = root.querySelector("#zoom-display");
     const zoomIn = root.querySelector("#zoom-in");
@@ -146,7 +146,7 @@ class Menu {
       if (zoomDisplay) {
         zoomDisplay.textContent = `${zoomLevel}%`;
       }
-      // Apply zoom to the game content
+
       document.body.style.zoom = `${zoomLevel / 100}`;
       localStorage.setItem("menu_zoom", zoomLevel);
     }
@@ -176,14 +176,14 @@ class Menu {
       });
     }
 
-    // Load saved zoom level
+
     const savedZoom = localStorage.getItem("menu_zoom");
     if (savedZoom) {
       zoomLevel = parseInt(savedZoom, 10);
       updateZoom();
     }
 
-    // ── LOAD SAVED SETTINGS ──
+
     inputs.forEach((input) => {
       const saved = localStorage.getItem(`menu_${input.id}`);
       if (saved) {
@@ -198,7 +198,7 @@ class Menu {
       }
     });
 
-    // ── MENU ITEMS WITH DATA-ACTION ──
+
     const menuItems = root.querySelectorAll("[data-action]");
     menuItems.forEach((item) => {
       item.addEventListener("click", () => {

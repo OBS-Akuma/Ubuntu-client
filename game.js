@@ -3,60 +3,15 @@ const path = require('path');
 const fs = require('fs');
 const DiscordRPC = require('./discord.js');
 
-// ── STORE DISCORD RPC INSTANCE ──
+
 let discordRPC = null;
 let gameWindow = null;
 
-// ── IPC HANDLERS ──
-ipcMain.handle('get-documents-path', () => {
-  return app.getPath('documents');
-});
 
-ipcMain.on('save-activity-data', (event, data) => {
-  try {
-    console.log(' Received save request from renderer:', data);
-    const documentsPath = app.getPath('documents');
-    const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
-    
-    if (!fs.existsSync(ubuntuFolder)) {
-      fs.mkdirSync(ubuntuFolder, { recursive: true });
-      console.log(' Created Ubuntu folder');
-    }
-    
-    const filePath = path.join(ubuntuFolder, 'Activity.json');
-    data.lastUpdated = new Date().toISOString();
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-    console.log(' Saved to file:', filePath);
-    console.log(' Total kills saved:', data.totalKills);
-    
-    event.reply('save-activity-reply', { success: true, filePath });
-  } catch (e) {
-    console.error(' Failed to save:', e);
-    event.reply('save-activity-reply', { success: false, error: e.message });
-  }
-});
 
-ipcMain.handle('load-activity-data', () => {
-  try {
-    const documentsPath = app.getPath('documents');
-    const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
-    const filePath = path.join(ubuntuFolder, 'Activity.json');
-    
-    if (!fs.existsSync(filePath)) {
-      return { success: true, data: { totalKills: 0, weapons: {} } };
-    }
-    
-    const data = fs.readFileSync(filePath, 'utf8');
-    const stats = JSON.parse(data);
-    return { success: true, data: stats };
-  } catch (e) {
-    console.error(' Failed to load activity data:', e);
-    return { success: false, error: e.message };
-  }
-});
 
-function createGameWindow() {
-  // Check if game window already exists
+function createGameWindow(settings = {}) {
+
   if (gameWindow && !gameWindow.isDestroyed()) {
     console.log(' Game window already exists, showing it');
     gameWindow.show();
@@ -64,7 +19,7 @@ function createGameWindow() {
     return gameWindow;
   }
 
-  // Read menu files
+
   let menuHTML = '';
   let menuCSS = '';
   try {
@@ -95,9 +50,9 @@ function createGameWindow() {
   const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
   const tokenPath = path.join(ubuntuFolder, 'token.txt');
   let token = '';
-  let targetPlayer = 'Newbie'; // Default fallback name
+  let targetPlayer = 'Newbie';
   
-  // Load the active account from token.txt
+
   try {
     if (fs.existsSync(tokenPath)) {
       const data = fs.readFileSync(tokenPath, 'utf8');
@@ -132,14 +87,22 @@ function createGameWindow() {
     console.log(' Error reading token:', e);
   }
 
-  // ─── MENU SCRIPT ───
+
+  const hideUsernames = settings.hide_usernames === true;
+  const menuKeybind = settings.menu_keybind || 'ShiftRight';
+  const endgameMessage = settings.endgame_message_text || 'Good Game';
+  console.log('[Game] Hide usernames setting from launcher:', hideUsernames);
+  console.log('[Game] Menu keybind from launcher:', menuKeybind);
+  console.log('[Game] Endgame message from launcher:', endgameMessage);
+
+
   const menuScript = `
     (function() {
       console.log('[Menu] Loading menu system...');
       
       function initMenu() {
         try {
-          // Menu HTML and CSS from main process
+
           const menuHTML = ${JSON.stringify(menuHTML)};
           const menuCSS = ${JSON.stringify(menuCSS)};
           
@@ -148,13 +111,13 @@ function createGameWindow() {
             return;
           }
           
-          // Create menu container
+
           const container = document.createElement('div');
           container.innerHTML = menuHTML;
           container.id = 'ubuntu-menu-container';
           container.style.cssText = 'z-index: 99999999; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95); display: none; opacity: 0; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);';
           
-          // Inject CSS
+
           const style = document.createElement('style');
           style.innerHTML = menuCSS;
           container.prepend(style);
@@ -162,7 +125,7 @@ function createGameWindow() {
           document.body.appendChild(container);
           console.log('[Menu] Container added to DOM');
           
-          // Create menu object
+
           const menu = {
             container: container,
             visible: false,
@@ -195,12 +158,65 @@ function createGameWindow() {
             }
           };
           
-          // Store reference globally
+
           window.UbuntuMenu = menu;
           
-          // ── EVENT LISTENERS ──
+
+
+          let menuKeybind = localStorage.getItem('menu_keybind') || 'ShiftRight';
+          console.log('[Menu] Using keybind:', menuKeybind);
           
-          // Right-click to toggle
+
+          if (window._menuKeybindListener) {
+            document.removeEventListener('keydown', window._menuKeybindListener);
+          }
+          
+
+          window._menuKeybindListener = function(e) {
+
+            let keyMatch = false;
+            
+            if (menuKeybind === 'ShiftRight') {
+              keyMatch = e.code === 'ShiftRight';
+            } else if (menuKeybind === 'ShiftLeft') {
+              keyMatch = e.code === 'ShiftLeft';
+            } else if (menuKeybind === 'ControlRight') {
+              keyMatch = e.code === 'ControlRight';
+            } else if (menuKeybind === 'ControlLeft') {
+              keyMatch = e.code === 'ControlLeft';
+            } else if (menuKeybind === 'AltRight') {
+              keyMatch = e.code === 'AltRight';
+            } else if (menuKeybind === 'AltLeft') {
+              keyMatch = e.code === 'AltLeft';
+            } else if (menuKeybind === 'MetaRight') {
+              keyMatch = e.code === 'MetaRight';
+            } else if (menuKeybind === 'MetaLeft') {
+              keyMatch = e.code === 'MetaLeft';
+            } else {
+
+              keyMatch = e.code === menuKeybind;
+            }
+            
+            if (keyMatch) {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('[Menu] Keybind pressed - toggling menu');
+              menu.toggle();
+              return false;
+            }
+            
+
+            if (e.key === 'Escape' && menu.visible) {
+              e.preventDefault();
+              menu.hide();
+            }
+          };
+          
+
+          document.addEventListener('keydown', window._menuKeybindListener);
+          console.log('[Menu] Keybind listener attached for:', menuKeybind);
+          
+
           document.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -208,31 +224,14 @@ function createGameWindow() {
             return false;
           });
           
-          // Right Shift key to toggle
-          document.addEventListener('keydown', (e) => {
-            if (e.code === 'ShiftRight') {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log('[Menu] Right Shift pressed - toggling menu');
-              menu.toggle();
-              return false;
-            }
-            
-            // Escape key to close
-            if (e.key === 'Escape' && menu.visible) {
-              e.preventDefault();
-              menu.hide();
-            }
-          });
-          
-          // ── CLOSE BUTTON ──
+
           const closeBtn = container.querySelector('.menu-close');
           if (closeBtn) {
             closeBtn.addEventListener('click', () => menu.hide());
             console.log('[Menu] Close button bound');
           }
           
-          // ── ZOOM CONTROLS ──
+
           let zoomLevel = parseInt(localStorage.getItem('menu_zoom')) || 100;
           const zoomDisplay = container.querySelector('#zoom-display');
           const zoomIn = container.querySelector('#zoom-in');
@@ -275,7 +274,7 @@ function createGameWindow() {
           updateZoom();
           console.log('[Menu] Zoom controls bound');
           
-          // ── MENU ITEMS WITH DATA-ACTION ──
+
           container.querySelectorAll('[data-action]').forEach((item) => {
             item.addEventListener('click', () => {
               const action = item.dataset.action;
@@ -299,7 +298,7 @@ function createGameWindow() {
             });
           });
           
-          // ── SETTING INPUTS ──
+
           container.querySelectorAll('.setting-input').forEach((input) => {
             const saved = localStorage.getItem('menu_' + input.id);
             if (saved) {
@@ -311,7 +310,7 @@ function createGameWindow() {
             });
           });
           
-          // ── SELECT DROPDOWNS ──
+
           container.querySelectorAll('.setting-select').forEach((select) => {
             const saved = localStorage.getItem('menu_' + select.id);
             if (saved) {
@@ -323,8 +322,158 @@ function createGameWindow() {
             });
           });
           
+
+          const keybindBtn = container.querySelector('#keybindBtn');
+          if (keybindBtn) {
+
+            const savedKeybind = localStorage.getItem('menu_keybind');
+            if (savedKeybind) {
+
+              const displayName = savedKeybind
+                .replace(/([A-Z])/g, ' $1')
+                .trim()
+                .replace('Shift Right', 'Right Shift')
+                .replace('Shift Left', 'Left Shift')
+                .replace('Control Right', 'Right Ctrl')
+                .replace('Control Left', 'Left Ctrl')
+                .replace('Alt Right', 'Right Alt')
+                .replace('Alt Left', 'Left Alt')
+                .replace('Meta Right', 'Right Win')
+                .replace('Meta Left', 'Left Win');
+              keybindBtn.textContent = displayName;
+            }
+            
+            let listening = false;
+            
+            keybindBtn.addEventListener('click', function(e) {
+              e.stopPropagation();
+              
+              if (listening) {
+                listening = false;
+                this.textContent = 'Click to set';
+                this.style.opacity = '0.6';
+                this.style.cursor = 'default';
+                return;
+              }
+              
+              listening = true;
+              this.textContent = 'Press a key...';
+              this.style.opacity = '1';
+              this.style.cursor = 'pointer';
+              
+              const keydownHandler = function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                
+                let key = event.code;
+                
+
+                if (key === 'ShiftLeft' || key === 'ShiftRight' || 
+                    key === 'ControlLeft' || key === 'ControlRight' ||
+                    key === 'AltLeft' || key === 'AltRight' ||
+                    key === 'MetaLeft' || key === 'MetaRight' ||
+                    key === 'CapsLock' || key === 'NumLock' ||
+                    key === 'ScrollLock') {
+
+                } else if (key.startsWith('F') && key.length <= 3) {
+
+                } else if (key.startsWith('Key')) {
+
+                } else if (key.startsWith('Digit')) {
+
+                } else {
+
+                  return;
+                }
+                
+
+                localStorage.setItem('menu_keybind', key);
+                menuKeybind = key;
+                
+
+                const displayName = key
+                  .replace(/([A-Z])/g, ' $1')
+                  .trim()
+                  .replace('Shift Right', 'Right Shift')
+                  .replace('Shift Left', 'Left Shift')
+                  .replace('Control Right', 'Right Ctrl')
+                  .replace('Control Left', 'Left Ctrl')
+                  .replace('Alt Right', 'Right Alt')
+                  .replace('Alt Left', 'Left Alt')
+                  .replace('Meta Right', 'Right Win')
+                  .replace('Meta Left', 'Left Win');
+                keybindBtn.textContent = displayName;
+                keybindBtn.style.opacity = '0.8';
+                keybindBtn.style.cursor = 'pointer';
+                
+
+                document.removeEventListener('keydown', keydownHandler);
+                listening = false;
+                
+
+                if (window._menuKeybindListener) {
+                  document.removeEventListener('keydown', window._menuKeybindListener);
+                }
+                
+
+                window._menuKeybindListener = function(e) {
+                  let keyMatch = false;
+                  
+                  if (menuKeybind === 'ShiftRight') {
+                    keyMatch = e.code === 'ShiftRight';
+                  } else if (menuKeybind === 'ShiftLeft') {
+                    keyMatch = e.code === 'ShiftLeft';
+                  } else if (menuKeybind === 'ControlRight') {
+                    keyMatch = e.code === 'ControlRight';
+                  } else if (menuKeybind === 'ControlLeft') {
+                    keyMatch = e.code === 'ControlLeft';
+                  } else if (menuKeybind === 'AltRight') {
+                    keyMatch = e.code === 'AltRight';
+                  } else if (menuKeybind === 'AltLeft') {
+                    keyMatch = e.code === 'AltLeft';
+                  } else if (menuKeybind === 'MetaRight') {
+                    keyMatch = e.code === 'MetaRight';
+                  } else if (menuKeybind === 'MetaLeft') {
+                    keyMatch = e.code === 'MetaLeft';
+                  } else {
+                    keyMatch = e.code === menuKeybind;
+                  }
+                  
+                  if (keyMatch) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[Menu] Keybind pressed - toggling menu');
+                    menu.toggle();
+                    return false;
+                  }
+                  
+                  if (e.key === 'Escape' && menu.visible) {
+                    e.preventDefault();
+                    menu.hide();
+                  }
+                };
+                
+                document.addEventListener('keydown', window._menuKeybindListener);
+                console.log('[Menu] Keybind updated to:', menuKeybind);
+              };
+              
+              document.addEventListener('keydown', keydownHandler);
+              
+
+              setTimeout(() => {
+                if (listening) {
+                  listening = false;
+                  document.removeEventListener('keydown', keydownHandler);
+                  keybindBtn.textContent = 'Click to set';
+                  keybindBtn.style.opacity = '0.6';
+                  keybindBtn.style.cursor = 'default';
+                }
+              }, 5000);
+            });
+          }
+          
           console.log('[Menu] Menu system initialized successfully!');
-          console.log('[Menu] Right click or Right Shift to open');
+          console.log('[Menu] Right click or', menuKeybind, 'to open');
         } catch (e) {
           console.error('[Menu] Failed to initialize menu:', e);
           console.error('[Menu] Stack:', e.stack);
@@ -339,12 +488,19 @@ function createGameWindow() {
     })();
   `;
 
-  // ─── TOKEN INJECTION SCRIPT ───
+
   const injectionScript = `
     (function() {
       console.log(' Token injection starting...');
       
       let tokenSaved = false;
+
+      function looksLikeJWT(value) {
+        if (typeof value !== 'string') return false;
+        const parts = value.split('.');
+        if (parts.length !== 3) return false;
+        return parts.every(p => p.length > 0 && /^[A-Za-z0-9_-]+$/.test(p));
+      }
       
       if (!window.electronAPI) {
         window.electronAPI = {
@@ -367,14 +523,39 @@ function createGameWindow() {
           }
         };
       }
+
+      try {
+        const existingCandidate = localStorage.getItem('token') || localStorage.getItem('Ubuntu_token');
+        if (existingCandidate && looksLikeJWT(existingCandidate)) {
+          console.log('[TokenCapture] Found existing token already in localStorage on script start');
+          if (window.electronAPI && window.electronAPI.saveToken) {
+            window.electronAPI.saveToken(existingCandidate);
+          }
+        } else if (existingCandidate) {
+          console.log('[TokenCapture] Found existing localStorage.token but it does not look like a JWT, sending anyway');
+          if (window.electronAPI && window.electronAPI.saveToken) {
+            window.electronAPI.saveToken(existingCandidate);
+          }
+        } else {
+          console.log('[TokenCapture] No existing token in localStorage on script start');
+        }
+      } catch (e) {
+        console.error('[TokenCapture] Error checking existing localStorage token:', e);
+      }
       
       if (!window._localStorageOverridden) {
         window._localStorageOverridden = true;
         const originalSetItem = localStorage.setItem;
         localStorage.setItem = function(key, value) {
           originalSetItem.call(this, key, value);
-          if (value && (key === 'token' || key === 'Ubuntu_token')) {
-            console.log(' Token saved with key:', key);
+
+          console.log('[TokenCapture] localStorage.setItem ->', key, '(len:', value ? value.length : 0, ')');
+
+          const isKnownKey = (key === 'token' || key === 'Ubuntu_token');
+          const isJWTShaped = looksLikeJWT(value);
+
+          if (value && (isKnownKey || isJWTShaped)) {
+            console.log('[TokenCapture] Candidate token detected on key:', key, isKnownKey ? '(known key)' : '(JWT-shaped)');
             if (window.electronAPI && window.electronAPI.saveToken) {
               window.electronAPI.saveToken(value);
             }
@@ -399,8 +580,10 @@ function createGameWindow() {
       if (!window._storageListenerAdded) {
         window._storageListenerAdded = true;
         window.addEventListener('storage', function(e) {
-          if (e.newValue && (e.key === 'token' || e.key === 'Ubuntu_token') && e.newValue !== e.oldValue) {
-            console.log(' Token changed in storage');
+          const isKnownKey = (e.key === 'token' || e.key === 'Ubuntu_token');
+          const isJWTShaped = looksLikeJWT(e.newValue);
+          if (e.newValue && e.newValue !== e.oldValue && (isKnownKey || isJWTShaped)) {
+            console.log(' Token changed in storage on key:', e.key);
             if (window.electronAPI && window.electronAPI.saveToken) {
               window.electronAPI.saveToken(e.newValue);
             }
@@ -412,7 +595,7 @@ function createGameWindow() {
     })();
   `;
 
-  // ─── GUN TRACKER SCRIPT ───
+
   const gunTrackerScript = `
     (function() {
       console.log(' Gun Tracker starting...');
@@ -665,24 +848,261 @@ function createGameWindow() {
     })();
   `;
 
-  const combinedScript = injectionScript + '\n' + gunTrackerScript + '\n' + menuScript;
 
-  // ── SETTINGS ──
+  const usernameHidingScript = `
+    (function() {
+      console.log('[Username Hiding] Initializing...');
+      
+      const hideUsernames = ${hideUsernames === true ? 'true' : 'false'};
+      console.log('[Username Hiding] Setting from launcher:', hideUsernames);
+      
+      const usernameHideCSS = \`
+        .nickname,
+        .name.profile[data-v-4f4783e0],
+        .username[data-v-e3674cae],
+        .value[data-v-cb399910],
+        .short-id-clipboard[data-v-6d2f629a],
+        .teammate-name[data-v-48f745a8],
+        .killer-name[data-v-4cc6715c],
+        .name-kill[data-v-4cc6715c],
+        .short-id[data-v-9744172e] {
+          filter: blur(14px) !important;
+          transition: filter 0.3s ease !important;
+          user-select: none !important;
+        }
+      \`;
+      
+      function applyUsernameHiding(enable) {
+        console.log('[Username Hiding] Applying with enable:', enable);
+        let styleElement = document.getElementById('ubuntu-username-hide');
+        
+        if (enable) {
+          if (!styleElement) {
+            styleElement = document.createElement('style');
+            styleElement.id = 'ubuntu-username-hide';
+            styleElement.textContent = usernameHideCSS;
+            document.head.appendChild(styleElement);
+            console.log('[Username Hiding]  CSS applied (enabled)');
+          }
+        } else {
+          if (styleElement) {
+            styleElement.remove();
+            console.log('[Username Hiding]  CSS removed (disabled)');
+          }
+        }
+      }
+      
+      applyUsernameHiding(hideUsernames);
+      
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+          applyUsernameHiding(hideUsernames);
+        });
+      }
+      
+      setTimeout(function() { applyUsernameHiding(hideUsernames); }, 500);
+      setTimeout(function() { applyUsernameHiding(hideUsernames); }, 1000);
+      setTimeout(function() { applyUsernameHiding(hideUsernames); }, 2000);
+      setTimeout(function() { applyUsernameHiding(hideUsernames); }, 3000);
+      setTimeout(function() { applyUsernameHiding(hideUsernames); }, 5000);
+      
+      function setupSettingListener() {
+        const settingInput = document.querySelector('#Hide_usernames');
+        if (settingInput) {
+          console.log('[Username Hiding] Found setting input, attaching listener');
+          settingInput.addEventListener('change', function() {
+            const value = this.value === 'true';
+            localStorage.setItem('menu_Hide_usernames', this.value);
+            console.log('[Username Hiding] Setting changed to:', value);
+            applyUsernameHiding(value);
+          });
+        } else {
+          setTimeout(setupSettingListener, 500);
+        }
+      }
+      
+      setupSettingListener();
+      
+      window.addEventListener('storage', function(e) {
+        if (e.key === 'menu_Hide_usernames') {
+          const value = e.newValue === 'true';
+          console.log('[Username Hiding] Storage event detected, value:', value);
+          applyUsernameHiding(value);
+        }
+      });
+      
+      const observer = new MutationObserver(function() {
+        const styleElement = document.getElementById('ubuntu-username-hide');
+        if (hideUsernames && !styleElement) {
+          const newStyle = document.createElement('style');
+          newStyle.id = 'ubuntu-username-hide';
+          newStyle.textContent = usernameHideCSS;
+          document.head.appendChild(newStyle);
+          console.log('[Username Hiding] Re-injected CSS');
+        }
+      });
+      
+      if (document.head) {
+        observer.observe(document.head, { childList: true, subtree: true });
+      }
+      
+      console.log('[Username Hiding] Initialized with setting:', hideUsernames);
+    })();
+  `;
+
+
+  const endGameMessageScript = `
+    (function() {
+      console.log('[End Game Message] Initializing...');
+      
+      const TARGET_TIME = "0:01";
+      const MESSAGE_TEXT = ${JSON.stringify(endgameMessage)};
+      let hasSentMessage = false;
+      let lastTimerValue = null;
+      let timerWasAbsent = false;
+
+      function parseTimerSeconds(str) {
+        if (!str) return -1;
+        const parts = str.trim().split(':');
+        if (parts.length !== 2) return -1;
+        return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+      }
+
+      function sendMessage() {
+        const chatInput = document.querySelector('#WwMnw');
+        if (chatInput) {
+          chatInput.value = MESSAGE_TEXT;
+          chatInput.dispatchEvent(new Event('input', { bubbles: true }));
+          const enterButton = document.querySelector('.info-key-cont.enter');
+          if (enterButton) {
+            enterButton.click();
+          } else {
+            chatInput.dispatchEvent(new KeyboardEvent('keypress', {
+              key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true
+            }));
+          }
+          console.log('[End Game Message] Message sent:', MESSAGE_TEXT);
+        } else {
+          console.log('[End Game Message] Chat input not found');
+        }
+      }
+
+      function monitorTimersAndSendMessage() {
+        if (hasSentMessage) return;
+        const timers = document.querySelectorAll('.timer.bg.text-1');
+        if (timers.length === 0) return;
+        timers.forEach(timer => {
+          if (timer.textContent.trim() === TARGET_TIME && !hasSentMessage) {
+            hasSentMessage = true;
+            console.log('[End Game Message] Timer hit 0:01, sending message');
+            sendMessage();
+          }
+        });
+      }
+
+      function handleShiftCRouch() {
+        let shiftPressed = false;
+        let hasTriggered = false;
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Shift') shiftPressed = true;
+          if (!hasTriggered && shiftPressed && (event.key === 'c' || event.key === 'C')) {
+            const instructionTexts = document.querySelectorAll('.info-text');
+            let foundCRouch = false;
+            instructionTexts.forEach(text => {
+              if (text.textContent.includes('cRouch')) foundCRouch = true;
+            });
+            if (foundCRouch) {
+              const enterButton = document.querySelector('.info-key-cont.enter');
+              if (enterButton) {
+                enterButton.click();
+                hasTriggered = true;
+                console.log('[End Game Message] Shift+C triggered');
+              }
+            }
+          }
+        });
+        document.addEventListener('keyup', (event) => {
+          if (event.key === 'Shift') shiftPressed = false;
+        });
+      }
+
+      function setupTimerWatcher() {
+        const observer = new MutationObserver(() => monitorTimersAndSendMessage());
+        const stateContainer = document.querySelector('.state-cont');
+        if (stateContainer) {
+          observer.observe(stateContainer, { childList: true, subtree: true, characterData: true });
+          console.log('[End Game Message] Timer watcher attached');
+        } else {
+          setTimeout(setupTimerWatcher, 1000);
+        }
+      }
+
+
+      setInterval(() => {
+        const timers = document.querySelectorAll('.timer.bg.text-1');
+
+        if (timers.length === 0) {
+          timerWasAbsent = true;
+          lastTimerValue = null;
+          return;
+        }
+
+        const currentValue = timers[0].textContent.trim();
+        const currentSeconds = parseTimerSeconds(currentValue);
+        const lastSeconds = parseTimerSeconds(lastTimerValue);
+        const timerJumpedUp = lastSeconds !== -1 && currentSeconds > lastSeconds + 5;
+
+        if (timerWasAbsent || timerJumpedUp) {
+          hasSentMessage = false;
+          timerWasAbsent = false;
+          console.log('[End Game Message] Timer reset detected, allowing new message');
+        }
+
+        if (!hasSentMessage) {
+          if (currentValue === TARGET_TIME && lastTimerValue !== TARGET_TIME) {
+            monitorTimersAndSendMessage();
+          }
+        }
+
+        lastTimerValue = currentValue;
+      }, 100);
+
+      setupTimerWatcher();
+      handleShiftCRouch();
+      
+      console.log('[End Game Message] Initialized with message:', MESSAGE_TEXT);
+    })();
+  `;
+
+  const combinedScript = injectionScript + '\n' + gunTrackerScript + '\n' + menuScript + '\n' + usernameHidingScript + '\n' + endGameMessageScript;
+
+
   const settingsPath = path.join(ubuntuFolder, 'settings.txt');
   let proxyUrl = 'https://kirka.io/';
   let discordRpcEnabled = true;
+
+  let rpcVisibility = {
+    lobby: true,
+    matches: true,
+    profile: true,
+    launcher: true,
+  };
   
   try {
     if (fs.existsSync(settingsPath)) {
-      const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-      if (settings.proxy) proxyUrl = settings.proxy;
-      if (settings.discord_rpc !== undefined) discordRpcEnabled = settings.discord_rpc;
+      const settingsData = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      if (settingsData.proxy) proxyUrl = settingsData.proxy;
+      if (settingsData.discord_rpc !== undefined) discordRpcEnabled = settingsData.discord_rpc;
+      if (settingsData.discord_rpc_show_lobby !== undefined) rpcVisibility.lobby = settingsData.discord_rpc_show_lobby;
+      if (settingsData.discord_rpc_show_matches !== undefined) rpcVisibility.matches = settingsData.discord_rpc_show_matches;
+      if (settingsData.discord_rpc_show_profile !== undefined) rpcVisibility.profile = settingsData.discord_rpc_show_profile;
+      if (settingsData.discord_rpc_show_launcher !== undefined) rpcVisibility.launcher = settingsData.discord_rpc_show_launcher;
     }
   } catch (e) {
     console.log(' Error reading settings:', e);
   }
 
-  // ── INITIALIZE DISCORD RPC ──
+
   if (discordRpcEnabled && !discordRPC) {
     try {
       discordRPC = new DiscordRPC();
@@ -693,163 +1113,97 @@ function createGameWindow() {
     }
   }
 
-  // ── LISTEN FOR URL CHANGES ──
+
+  const GENERIC_RPC_FALLBACK = '';
+
+  function resolveDiscordState(url) {
+    const base_url = proxyUrl;
+    const stateMap = {
+      [`${base_url}`]: { text: 'In the lobby', category: 'lobby' },
+      [`${base_url}hub/leaderboard`]: { text: 'Viewing the leaderboard', category: 'lobby' },
+      [`${base_url}hub/clans/champions-league`]: { text: 'Viewing the clan leaderboard', category: 'lobby' },
+      [`${base_url}hub/clans/my-clan`]: { text: 'Viewing their clan', category: 'lobby' },
+      [`${base_url}hub/market`]: { text: 'Viewing the market', category: 'lobby' },
+      [`${base_url}hub/live`]: { text: 'Viewing videos', category: 'lobby' },
+      [`${base_url}hub/news`]: { text: 'Viewing news', category: 'lobby' },
+      [`${base_url}hub/terms`]: { text: 'Viewing the terms of service', category: 'lobby' },
+      [`${base_url}store`]: { text: 'Viewing the store', category: 'lobby' },
+      [`${base_url}servers/main`]: { text: 'Viewing main servers', category: 'lobby' },
+      [`${base_url}servers/parkour`]: { text: 'Viewing parkour servers', category: 'lobby' },
+      [`${base_url}servers/custom`]: { text: 'Viewing custom servers', category: 'lobby' },
+      [`${base_url}quests/hourly`]: { text: 'Viewing hourly quests', category: 'lobby' },
+      [`${base_url}friends`]: { text: 'Viewing friends', category: 'lobby' },
+      [`${base_url}inventory`]: { text: 'Viewing their inventory', category: 'lobby' },
+      [`${base_url}profile/NUGGET`]: { text: 'Viewing the smudgy client owners Profile', category: 'profile' },
+    };
+
+    let category, state, smallImageKey, smallImageText;
+    const entry = stateMap[url];
+
+    if (entry) {
+      category = entry.category;
+      state = entry.text;
+    } else if (url && url.startsWith(`${base_url}games/`)) {
+      category = 'matches';
+      state = 'In a match';
+    } else if (url && url.startsWith(`${base_url}profile/`)) {
+      category = 'profile';
+      const profileMatch = url.match(`${base_url}profile/(.+)`);
+      if (profileMatch && profileMatch[1]) {
+        const shortId = profileMatch[1];
+        const randomNumbers = Math.floor(Math.random() * 1000000);
+        state = `Viewing player profile #${shortId}`;
+        smallImageKey = `https://www.smudgy.store/api/list/profile.png?meow=${shortId}&v=${randomNumbers}`;
+        smallImageText = `Viewing ${shortId}'s profile`;
+      } else {
+        state = 'Viewing a profile';
+      }
+    } else {
+      category = 'lobby';
+      state = 'In the lobby';
+    }
+
+    if (rpcVisibility[category] === false) {
+      state = GENERIC_RPC_FALLBACK;
+      smallImageKey = undefined;
+      smallImageText = undefined;
+    }
+
+    return { state, smallImageKey, smallImageText };
+  }
+
+  function applyDiscordPresence(url) {
+    if (!discordRpcEnabled || !gameWindow.DiscordRPC || !url) return;
+
+    const { state, smallImageKey, smallImageText } = resolveDiscordState(url);
+    const activity = gameWindow.DiscordRPC.defaultActivity();
+    activity.state = state;
+
+    if (smallImageKey) {
+      activity.smallImageKey = smallImageKey;
+      activity.smallImageText = smallImageText;
+    } else {
+      delete activity.smallImageKey;
+      delete activity.smallImageText;
+    }
+
+    gameWindow.DiscordRPC.setActivity(activity);
+  }
+
+
   gameWindow.webContents.on('did-navigate-in-page', (e, url) => {
     console.log(' URL changed to:', url);
-    
-    if (discordRpcEnabled && gameWindow.DiscordRPC) {
-      const base_url = proxyUrl;
-      const stateMap = {
-        [`${base_url}`]: "In the lobby meow",
-        [`${base_url}hub/leaderboard`]: "Viewing the leaderboard meow",
-        [`${base_url}hub/clans/champions-league`]: "Viewing the clan leaderboard",
-        [`${base_url}hub/clans/my-clan`]: "Viewing their clan meow",
-        [`${base_url}hub/market`]: "Viewing the market meow",
-        [`${base_url}hub/live`]: "Viewing videos meow",
-        [`${base_url}hub/news`]: "Viewing news meow",
-        [`${base_url}hub/terms`]: "Viewing the terms of service meow",
-        [`${base_url}store`]: "Viewing the store meow",
-        [`${base_url}servers/main`]: "Viewing main servers meow",
-        [`${base_url}servers/parkour`]: "Viewing parkour servers meow",
-        [`${base_url}servers/custom`]: "Viewing custom servers meow",
-        [`${base_url}quests/hourly`]: "Viewing hourly quests meow",
-        [`${base_url}friends`]: "Viewing friends meow",
-        [`${base_url}inventory`]: "Viewing their inventory meow",
-        [`https://accounts.google.com/`]: "Logining in (With google)",
-        [`https://www.facebook.com/`]: "Logining in (With facebook)",
-        [`https://appleid.apple.com/`]: "Logining in (With apple)",
-        [`https://www.twitch.tv/login`]: "Logining in (With twitch)",
-        [`https://discord.com/oauth2`]: "Logining in (With Discord)",
-        [`https://id.vk.ru/`]: "Logining in (With vk)",
-        [`${base_url}/profile/NUGGET`]: "Viewing the smudgy client owners Profle",
-      };
-
-      let state;
-
-      if (stateMap[url]) {
-        state = stateMap[url];
-      } else if (url.startsWith(`${base_url}games/`)) {
-        state = "In a match meow";
-      } else if (url.startsWith(`${base_url}profile/`)) {
-        const profileMatch = url.match(`${base_url}profile/(.+)`);
-        if (profileMatch && profileMatch[1]) {
-          const shortId = profileMatch[1];
-          state = `Viewing player profile #${shortId}`;
-          const randomNumbers = Math.floor(Math.random() * 1000000);
-          const activity = gameWindow.DiscordRPC.defaultActivity();
-          activity.state = state;
-          activity.smallImageKey = `https://www.smudgy.store/api/list/profile.png?meow=${shortId}&v=${randomNumbers}`;
-          activity.smallImageText = `Viewing ${shortId}'s profile`;
-          gameWindow.DiscordRPC.setActivity(activity);
-        } else {
-          state = "Viewing a profile meow";
-          const activity = gameWindow.DiscordRPC.defaultActivity();
-          activity.state = state;
-          delete activity.smallImageKey;
-          delete activity.smallImageText;
-          gameWindow.DiscordRPC.setActivity(activity);
-        }
-      } else {
-        state = "In the lobby meow";
-        const activity = gameWindow.DiscordRPC.defaultActivity();
-        activity.state = state;
-        delete activity.smallImageKey;
-        delete activity.smallImageText;
-        gameWindow.DiscordRPC.setActivity(activity);
-      }
-
-      if (!url.startsWith(`${base_url}profile/`) && !stateMap[url] && !url.startsWith(`${base_url}games/`)) {
-        const activity = gameWindow.DiscordRPC.defaultActivity();
-        activity.state = state;
-        delete activity.smallImageKey;
-        delete activity.smallImageText;
-        gameWindow.DiscordRPC.setActivity(activity);
-      } else if (!url.startsWith(`${base_url}profile/`)) {
-        gameWindow.DiscordRPC.setState(state);
-      }
-    }
-    
+    applyDiscordPresence(url);
     gameWindow.webContents.send('url-change', url);
   });
 
-  // ── PAGE LOAD HANDLER ──
+
   gameWindow.webContents.on('did-finish-load', () => {
     console.log(' Game loaded, injecting scripts');
     
     const currentUrl = gameWindow.webContents.getURL();
-    
-    if (discordRpcEnabled && gameWindow.DiscordRPC) {
-      const base_url = proxyUrl;
-      const stateMap = {
-        [`${base_url}`]: "In the lobby meow",
-        [`${base_url}hub/leaderboard`]: "Viewing the leaderboard meow",
-        [`${base_url}hub/clans/champions-league`]: "Viewing the clan leaderboard",
-        [`${base_url}hub/clans/my-clan`]: "Viewing their clan meow",
-        [`${base_url}hub/market`]: "Viewing the market meow",
-        [`${base_url}hub/live`]: "Viewing videos meow",
-        [`${base_url}hub/news`]: "Viewing news meow",
-        [`${base_url}hub/terms`]: "Viewing the terms of service meow",
-        [`${base_url}store`]: "Viewing the store meow",
-        [`${base_url}servers/main`]: "Viewing main servers meow",
-        [`${base_url}servers/parkour`]: "Viewing parkour servers meow",
-        [`${base_url}servers/custom`]: "Viewing custom servers meow",
-        [`${base_url}quests/hourly`]: "Viewing hourly quests meow",
-        [`${base_url}friends`]: "Viewing friends meow",
-        [`${base_url}inventory`]: "Viewing their inventory meow",
-        [`https://accounts.google.com/`]: "Logining in (With google)",
-        [`https://www.facebook.com/`]: "Logining in (With facebook)",
-        [`https://appleid.apple.com/`]: "Logining in (With apple)",
-        [`https://www.twitch.tv/login`]: "Logining in (With twitch)",
-        [`https://discord.com/oauth2`]: "Logining in (With Discord)",
-        [`https://id.vk.ru/`]: "Logining in (With vk)",
-        [`${base_url}/profile/NUGGET`]: "Viewing the smudgy client owners Profle",
-      };
+    applyDiscordPresence(currentUrl);
 
-      let state;
-
-      if (stateMap[currentUrl]) {
-        state = stateMap[currentUrl];
-      } else if (currentUrl && currentUrl.startsWith(`${base_url}games/`)) {
-        state = "In a match meow";
-      } else if (currentUrl && currentUrl.startsWith(`${base_url}profile/`)) {
-        const profileMatch = currentUrl.match(`${base_url}profile/(.+)`);
-        if (profileMatch && profileMatch[1]) {
-          const shortId = profileMatch[1];
-          state = `Viewing player profile #${shortId}`;
-          const randomNumbers = Math.floor(Math.random() * 1000000);
-          const activity = gameWindow.DiscordRPC.defaultActivity();
-          activity.state = state;
-          activity.smallImageKey = `https://www.smudgy.store/api/list/profile.png?meow=${shortId}&v=${randomNumbers}`;
-          activity.smallImageText = `Viewing ${shortId}'s profile`;
-          gameWindow.DiscordRPC.setActivity(activity);
-        } else {
-          state = "Viewing a profile meow";
-          const activity = gameWindow.DiscordRPC.defaultActivity();
-          activity.state = state;
-          delete activity.smallImageKey;
-          delete activity.smallImageText;
-          gameWindow.DiscordRPC.setActivity(activity);
-        }
-      } else {
-        state = "In the lobby meow";
-        const activity = gameWindow.DiscordRPC.defaultActivity();
-        activity.state = state;
-        delete activity.smallImageKey;
-        delete activity.smallImageText;
-        gameWindow.DiscordRPC.setActivity(activity);
-      }
-
-      if (!currentUrl.startsWith(`${base_url}profile/`) && !stateMap[currentUrl] && !currentUrl.startsWith(`${base_url}games/`)) {
-        const activity = gameWindow.DiscordRPC.defaultActivity();
-        activity.state = state;
-        delete activity.smallImageKey;
-        delete activity.smallImageText;
-        gameWindow.DiscordRPC.setActivity(activity);
-      } else if (!currentUrl.startsWith(`${base_url}profile/`)) {
-        gameWindow.DiscordRPC.setState(state);
-      }
-    }
-    
     gameWindow.webContents.executeJavaScript(combinedScript)
       .then(() => {
         console.log(' Scripts executed successfully');
@@ -857,7 +1211,7 @@ function createGameWindow() {
       .catch(err => console.error(' Script execution failed:', err));
   });
 
-  // ── SET USER AGENT ──
+
   gameWindow.webContents.setUserAgent(
     `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.7103.116 Safari/537.36 Electron/${app.getVersion()} UbuntuClient/${app.getVersion()}`
   );

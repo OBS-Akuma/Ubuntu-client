@@ -41,7 +41,7 @@ select:focus-visible {
     border-color: #1A8E50;
 }
 
-/* ----- TALL & NARROW MENU ----- */
+
 #nameless-menu-overlay {
     display: block !important;
     width: 100%;
@@ -73,7 +73,7 @@ select:focus-visible {
     border-radius: 12px;
 }
 
-/* ----- HEADER ----- */
+
 .menu-header {
     font-size: 0.7rem;
     font-weight: 600;
@@ -93,7 +93,7 @@ select:focus-visible {
     font-size: 0.7rem;
 }
 
-/* ----- SETTING ITEMS ----- */
+
 .setting-item {
     display: flex;
     align-items: center;
@@ -156,7 +156,7 @@ select:focus-visible {
     font-size: 0.55rem;
 }
 
-/* ----- SELECT DROPDOWN (theme) ----- */
+
 .setting-select {
     background: var(--bg2);
     border: 1px solid var(--border);
@@ -181,7 +181,7 @@ select:focus-visible {
     color: #bbb;
 }
 
-/* ----- ZOOM CONTROLS (grouped) ----- */
+
 .zoom-group {
     display: flex;
     gap: 0.2rem;
@@ -228,14 +228,14 @@ select:focus-visible {
     font-weight: 500;
 }
 
-/* ----- DIVIDER ----- */
+
 .menu-divider {
     height: 1px;
     background: var(--border);
     margin: 0.2rem 0;
 }
 
-/* demo note */
+
 .demo-note {
     position: fixed;
     bottom: 1rem;
@@ -259,7 +259,7 @@ select:focus-visible {
     }
 }
 
-/* Menu close button */
+
 .menu-close:hover {
     color: #fff !important;
     background: rgba(255,255,255,0.05);

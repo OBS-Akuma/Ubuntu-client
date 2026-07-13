@@ -113,11 +113,11 @@
 
                 
                 <div id="launch-tab" class="tab-content active">
-                    <div class="content-title">Kirka and devs meet.</div>
+                    <div class="content-title">Ubuntu Launcher.</div>
                     <div class="launch-grid">
                         <div class="launch-left">
                             <div class="version-tabs">
-                                <button class="ver-tab active" id="version-tag">?.?.?</button>
+                                <button class="ver-tab active" id="version-tag">Loading...</button>
                             </div>
 
                             
@@ -148,7 +148,7 @@
                 <div id="settings-tab" class="tab-content">
                     <div class="content-title">Settings</div>
                     
-                    <!-- Proxy Settings -->
+                    
                     <div class="settings-group">
                         <div class="option">
                             <div class="left"><span>Proxy URL</span><span class="description">Select server endpoint</span></div>
@@ -162,7 +162,7 @@
                         </div>
                     </div>
 
-                    <!-- Performance Settings -->
+                    
                     <div class="content-title">Performance</div>
                     <div class="settings-group">
                         <div class="option">
@@ -175,15 +175,91 @@
                         </div>
                     </div>
 
-                    <!-- Keybind Settings -->
+                    
+                    <div class="content-title">Discord Rich Presence</div>
                     <div class="settings-group">
                         <div class="option">
-                            <div class="left"><span>Menu Toggle Keybind</span><span class="description">Customizable keybind to toggle the menu</span></div>
-                            <button class="change-keybind" id="keybindBtn" style="opacity:0.6;cursor:default;">Click to set</button>
+                            <div class="left"><span>Enable Discord RPC</span><span class="description">Show your activity as a Discord status</span></div>
+                            <div class="checkbox"><input type="checkbox" id="discord_rpc" checked><label for="discord_rpc"></label></div>
+                        </div>
+                        <div class="option">
+                            <div class="left"><span>Show Lobby & Menus</span><span class="description">Reveal which menu/page you're browsing (leaderboard, market, servers, etc.)</span></div>
+                            <div class="checkbox"><input type="checkbox" id="discord_rpc_show_lobby" checked><label for="discord_rpc_show_lobby"></label></div>
+                        </div>
+                        <div class="option">
+                            <div class="left"><span>Show Match Status</span><span class="description">Reveal when you're in a match</span></div>
+                            <div class="checkbox"><input type="checkbox" id="discord_rpc_show_matches" checked><label for="discord_rpc_show_matches"></label></div>
+                        </div>
+                        <div class="option">
+                            <div class="left"><span>Show Profile Viewing</span><span class="description">Reveal which profile you're viewing</span></div>
+                            <div class="checkbox"><input type="checkbox" id="discord_rpc_show_profile" checked><label for="discord_rpc_show_profile"></label></div>
+                        </div>
+                        <div class="option">
+                            <div class="left"><span>Show launcher rpc Status</span><span class="description">Shows when you are or arn't in the launcher.</span></div>
+                            <div class="checkbox"><input type="checkbox" id="discord_rpc_show_launcher" checked><label for="discord_rpc_show_launcher"></label></div>
                         </div>
                     </div>
 
-                    <!-- Account Settings -->
+                    
+                    <div class="content-title">Keybinds</div>
+                    <div class="settings-group">
+                        <div class="option">
+                            <div class="left"><span>Menu Toggle Keybind</span><span class="description">Customizable keybind to toggle the menu in-game</span></div>
+                            <button class="change-keybind" id="keybindBtn">Click to set</button>
+                        </div>
+                        <div class="option">
+    <div class="left">
+        <span>Top</span>
+        <span class="description">Sends a the "{message_up}" based on what key you press.</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+        <input type="text" id="message_up" class="setting-input" placeholder="Up message" value="Up" style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 12px;color:var(--text);width:150px;font-size:0.85rem;">
+        <button class="change-keybind" id="keybindup">Click to set</button>
+    </div>
+</div>
+<div class="option">
+    <div class="left">
+        <span>Down</span>
+        <span class="description">Sends a the "{message_down}" based on what key you press.</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+        <input type="text" id="message_down" class="setting-input" placeholder="Down message" value="Down" style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 12px;color:var(--text);width:150px;font-size:0.85rem;">
+        <button class="change-keybind" id="keybinddown">Click to set</button>
+    </div>
+</div>
+<div class="option">
+    <div class="left">
+        <span>Left</span>
+        <span class="description">Sends a the "{message_left}" based on what key you press.</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+        <input type="text" id="message_left" class="setting-input" placeholder="Left message" value="Left" style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 12px;color:var(--text);width:150px;font-size:0.85rem;">
+        <button class="change-keybind" id="keybindleft">Click to set</button>
+    </div>
+</div>
+<div class="option">
+    <div class="left">
+        <span>Right</span>
+        <span class="description">Sends a the "{message_right}" based on what key you press.</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+        <input type="text" id="message_right" class="setting-input" placeholder="Right message" value="Right" style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 12px;color:var(--text);width:150px;font-size:0.85rem;">
+        <button class="change-keybind" id="keybindright">Click to set</button>
+    </div>
+</div>
+</div>
+
+                    
+                    <div class="content-title">End Game Message</div>
+                    <div class="settings-group">
+                        <div class="option">
+                            <div class="left"><span>End Game Message</span><span class="description">Message to auto-send when the game timer hits 0:01</span></div>
+                            <input type="text" id="endgame_message_text" class="setting-input" placeholder="Good Game" value="Good Game" style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 12px;color:var(--text);width:200px;font-size:0.85rem;">
+                        </div>
+                    </div>
+
+                    
+                    <div class="content-title">Account</div>
                     <div class="settings-group">
                         <div class="option">
                             <div class="left"><span>Account Status</span><span class="description">Auto Logs users in</span></div>
@@ -194,8 +270,13 @@
                                 <i class="fas fa-sign-out-alt" style="margin-right:5px;font-size:0.7rem;"></i>Log Out
                             </button>
                         </div>
+                        <div class="option">
+                            <div class="left"><span>Enable Ktiers</span><span class="description">Allows you to see ktiers Related Things.</span></div>
+                            <div class="checkbox"><input type="checkbox" id="Ktiers" checked><label for="Ktiers"></label></div>
+                        </div>
                     </div>
 
+                    
                     <div class="content-title">News Preferences</div>
                     <div class="settings-group">
                         <div class="option">
@@ -220,16 +301,24 @@
                         </div>
                     </div>
                     
+                    
                     <div class="content-title">Streamer Mode</div>
                     <div class="settings-group">
                         <div class="option">
                             <div class="left"><span>Hide Usernames</span><span class="description">Hides All Usernames And short ids</span></div>
-                            <div class="checkbox"><input type="checkbox" id="Hide_usernames"><label for="Hide_usernames"></label></div>
+                            <div class="checkbox"><input type="checkbox" id="hide_usernames"><label for="hide_usernames"></label></div>
                         </div>
                     </div>
-                </div>
 
-                
+                  <div class="content-title">miscellaneous</div>
+                    <div class="settings-group">
+                        <div class="option">
+                            <div class="left"><span>Fake banned</span><span class="description">makes it look like you are banned.</span></div>
+                            <div class="checkbox"><input type="checkbox" id="BannedToggle" checked><label for="BannedToggle"></label></div>
+                        </div>
+                        </div>
+                        </div>
+
                 <div id="scripts-tab" class="tab-content">
                     <div class="content-title">Scripts</div>
                     <div class="empty-tab">

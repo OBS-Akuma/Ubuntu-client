@@ -8,7 +8,136 @@ const { applySwitches, applyWindowSettings, getDefaultSettings } = require('./Sw
 let splashWindow = null;
 let gameWindow = null;
 
-// Load settings and apply switches BEFORE app is ready
+
+let ktiersCache = null;
+let ktiersCacheTime = null;
+const KTiersCacheDuration = 5 * 60 * 1000;
+
+
+const KTiersTiers = [
+    { 
+        name: 'Grandmaster', 
+        minPoints: 150, 
+        icon: 'https://ktiers.com/imgs/placements/Grandmaster.svg',
+        gradient: 'linear-gradient(135deg, #FFD700, #FFF176, #FFB300)',
+        glow: '#ffdc0030',
+        color: '#FFD700'
+    },
+    { 
+        name: 'Master', 
+        minPoints: 115, 
+        icon: 'https://ktiers.com/imgs/placements/Master.svg',
+        gradient: '#fffc5b',
+        glow: '#fffc5b30',
+        color: '#fffc5b'
+    },
+    { 
+        name: 'Ace', 
+        minPoints: 75, 
+        icon: 'https://ktiers.com/imgs/placements/Ace.svg',
+        gradient: '#ff8585',
+        glow: '#ff858530',
+        color: '#ff8585'
+    },
+    { 
+        name: 'Specialist', 
+        minPoints: 60, 
+        icon: 'https://ktiers.com/imgs/placements/Specialist.svg',
+        gradient: '#e66bff',
+        glow: '#e66bff30',
+        color: '#e66bff'
+    },
+    { 
+        name: 'Cadet', 
+        minPoints: 35, 
+        icon: 'https://ktiers.com/imgs/placements/Cadet.svg',
+        gradient: '#8b5cf6',
+        glow: '#8b5cf630',
+        color: '#8b5cf6'
+    },
+    { 
+        name: 'Novice', 
+        minPoints: 15, 
+        icon: 'https://ktiers.com/imgs/placements/Novice.svg',
+        gradient: '#0ea5e9',
+        glow: '#0ea5e930',
+        color: '#0ea5e9'
+    },
+    { 
+        name: 'Rookie', 
+        minPoints: 0, 
+        icon: 'https://ktiers.com/imgs/placements/Rookie.svg',
+        gradient: '#acacac',
+        glow: '#acacac30',
+        color: '#acacac'
+    }
+];
+
+
+
+async function fetchKTiersData() {
+
+    if (ktiersCache && ktiersCacheTime && (Date.now() - ktiersCacheTime < KTiersCacheDuration)) {
+        console.log('[KTiers] Using cached data');
+        return ktiersCache;
+    }
+
+    try {
+        console.log('[KTiers] Fetching data from API...');
+        const response = await fetch('https://www.smudgy.store/api/KTierslist');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error('API returned success: false');
+        }
+        
+
+        ktiersCache = data;
+        ktiersCacheTime = Date.now();
+        
+        console.log(`[KTiers] Fetched ${data.players?.length || 0} players`);
+        return data;
+    } catch (error) {
+        console.error('[KTiers] Error fetching data:', error);
+
+        if (ktiersCache) {
+            console.log('[KTiers] Using expired cache as fallback');
+            return ktiersCache;
+        }
+        return null;
+    }
+}
+
+function getTierForPlayer(player) {
+    if (!player) return null;
+    
+    const totalPoints = parseInt(player.points) || 0;
+    
+    for (const tier of KTiersTiers) {
+        if (totalPoints >= tier.minPoints) {
+            return tier;
+        }
+    }
+    
+    return KTiersTiers[KTiersTiers.length - 1];
+}
+
+function getPlayerFromKTiers(identifier, data) {
+    if (!data || !data.players) return null;
+    
+    return data.players.find(p => 
+        p.uuid.toLowerCase() === identifier.toLowerCase() || 
+        p.shortId.toLowerCase() === identifier.toLowerCase() ||
+        p.name.toLowerCase() === identifier.toLowerCase()
+    );
+}
+
+
 function loadAndApplySwitches() {
   try {
     const settingsPath = getSettingsFilePath();
@@ -25,7 +154,7 @@ function loadAndApplySwitches() {
       console.log('[Main] Using default settings for switches');
     }
     
-    // Apply the switches
+
     applySwitches(settings);
     return settings;
   } catch (e) {
@@ -83,22 +212,87 @@ ipcMain.handle('splash:get-version', () => {
   }
 });
 
+
+
+ipcMain.handle('ktiers:get-player', async (event, identifier) => {
+    try {
+        const data = await fetchKTiersData();
+        if (!data) {
+            return { success: false, error: 'Failed to fetch KTiers data' };
+        }
+        
+        const player = getPlayerFromKTiers(identifier, data);
+        if (!player) {
+            return { success: false, player: null };
+        }
+        
+        const tier = getTierForPlayer(player);
+        return {
+            success: true,
+            player: {
+                ...player,
+                tierInfo: tier,
+                points: parseInt(player.points) || 0
+            }
+        };
+    } catch (error) {
+        console.error('[KTiers] Error getting player:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('ktiers:refresh', async () => {
+    ktiersCache = null;
+    ktiersCacheTime = null;
+    const data = await fetchKTiersData();
+    return { success: !!data, count: data?.players?.length || 0 };
+});
+
+ipcMain.handle('ktiers:get-all-players', async () => {
+    const data = await fetchKTiersData();
+    if (!data) {
+        return { success: false, players: [] };
+    }
+    
+    const playersWithTiers = data.players.map(player => ({
+        ...player,
+        tierInfo: getTierForPlayer(player),
+        points: parseInt(player.points) || 0
+    }));
+    
+    return { success: true, players: playersWithTiers };
+});
+
+
+
 ipcMain.handle('load-settings', async () => {
   try {
     const filePath = getSettingsFilePath();
+
+
+
+    const defaultSettings = {
+      proxy: 'https://kirka.io/',
+      discord_rpc: true,
+      discord_rpc_show_lobby: true,
+      discord_rpc_show_matches: true,
+      discord_rpc_show_profile: true,
+      discord_rpc_show_login: true,
+      discord_rpc_show_launcher: true,
+      unlimited_fps: true,
+      in_process_gpu: true,
+      hide_usernames: false
+    };
+
     if (fs.existsSync(filePath)) {
       const data = fs.readFileSync(filePath, 'utf8');
       const settings = JSON.parse(data);
-      const defaultSettings = {
-        proxy: 'https://kirka.io/',
-        discord_rpc: true,
-        unlimited_fps: true,
-        in_process_gpu: true
-      };
       const mergedSettings = { ...defaultSettings, ...settings };
+      console.log('[Main] Loaded settings from file:', mergedSettings);
       return { success: true, settings: mergedSettings };
     }
-    return { success: true, settings: { proxy: 'https://kirka.io/', discord_rpc: true, unlimited_fps: true, in_process_gpu: true } };
+    console.log('[Main] Using default settings');
+    return { success: true, settings: defaultSettings };
   } catch (e) {
     console.error('Failed to load settings:', e);
     return { success: false, error: e.message };
@@ -110,8 +304,9 @@ ipcMain.handle('save-settings', async (event, settings) => {
     const filePath = getSettingsFilePath();
     fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf8');
     console.log('Settings saved to:', filePath);
+    console.log('Settings saved:', settings);
     
-    // Re-apply switches if they changed
+
     applySwitches(settings);
     
     return { success: true };
@@ -509,7 +704,7 @@ ipcMain.on('launch-game', () => {
     return;
   }
 
-  // Get settings for window
+
   let windowSettings = {};
   try {
     const settingsPath = getSettingsFilePath();
@@ -518,15 +713,24 @@ ipcMain.on('launch-game', () => {
       const settings = JSON.parse(data);
       const defaults = getDefaultSettings();
       windowSettings = { ...defaults, ...settings };
+      console.log('[Main] Settings passed to game window:', {
+        hide_usernames: windowSettings.hide_usernames,
+        discord_rpc: windowSettings.discord_rpc,
+        proxy: windowSettings.proxy
+      });
+    } else {
+      windowSettings = getDefaultSettings();
+      console.log('[Main] Using default settings for game window');
     }
   } catch (e) {
     console.error('Failed to load settings for game window:', e);
     windowSettings = getDefaultSettings();
   }
 
+
   gameWindow = createGameWindow(windowSettings);
 
-  // Apply window settings
+
   applyWindowSettings(gameWindow, windowSettings);
 
   gameWindow.webContents.once('did-finish-load', () => {
@@ -572,7 +776,7 @@ ipcMain.on('launch-game', () => {
   });
 });
 
-// Apply switches BEFORE app is ready
+
 const appSettings = loadAndApplySwitches();
 
 app.whenReady().then(() => {
@@ -601,8 +805,25 @@ app.whenReady().then(() => {
   }
 
   createSplashWindow();
+  
+
+  fetchKTiersData().then(data => {
+    if (data) {
+      console.log('[KTiers] Pre-fetched data on startup');
+    }
+  }).catch(err => {
+    console.error('[KTiers] Failed to pre-fetch:', err);
+  });
 });
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
+
+
+setInterval(() => {
+  console.log('[KTiers] Auto-refreshing cache...');
+  fetchKTiersData().catch(err => {
+    console.error('[KTiers] Auto-refresh failed:', err);
+  });
+}, 5 * 60 * 1000);

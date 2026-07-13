@@ -2,8 +2,12 @@
   {
     "name": "Client Proxy",
     "category": "Performance",
-    "description": "Allows users to use kirkas Built-in Proxys ;3",
-    "features": []
+    "description": "Allows users to use Kirka's Built-in Proxies ;3",
+    "features": [
+      "Switch between multiple proxy servers",
+      "kirka.io, snipers.io, ask101math.com, fpsiogame.com, cloudconverts.com",
+      "Persistent proxy selection saved across sessions"
+    ]
   },
   {
     "name": "News System",
@@ -13,15 +17,162 @@
       "General, promotional, event, alert categories",
       "Images and badges (NEW/LIVE)",
       "Clickable links",
-      "Fetches news data from remote repository"
+      "Fetches news data from remote repository",
+      "Toggle news on/off",
+      "Filter news by category"
     ]
   },
   {
-    "name": "Discord RPC",
+    "name": "Discord Rich Presence",
     "category": "Discord",
-    "description": "Allows users to know what client your using >,<",
+    "description": "Shows what you're doing in Kirka as your Discord status",
     "features": [
-      "shows What tab you're in just like smudgy,dawn,juice ect."
+      "Shows current page/menu (lobby, leaderboard, market, servers, etc.)",
+      "Shows when in a match",
+      "Shows what profile you're viewing",
+      "Shows launcher status",
+      "Per-category visibility toggles",
+      "Master toggle to disable/enable all RPC"
+    ]
+  },
+  {
+    "name": "Performance Enhancements",
+    "category": "Performance",
+    "description": "Optimize your gaming experience with performance tweaks",
+    "features": [
+      "Unlimited FPS - Remove the 60fps cap for smoother gameplay",
+      "In-Process GPU - Run GPU in the same process for better performance",
+      "Both settings persist across sessions"
+    ]
+  },
+  {
+    "name": "Activity Tracker",
+    "category": "Gameplay",
+    "description": "Track your kill statistics and weapon usage in real-time",
+    "features": [
+      "Tracks total kills per session",
+      "Weapon breakdown with percentages",
+      "Last kill tracking",
+      "Persistent storage in Documents/Ubuntu/Activity.json",
+      "Visual charts and statistics display"
+    ]
+  },
+  {
+    "name": "Custom Keybinds",
+    "category": "UI",
+    "description": "Customize keybinds to toggle the in-game menu",
+    "features": [
+      "Customizable menu toggle keybind",
+      "Supports modifier keys (Shift, Ctrl, Alt, Win)",
+      "Supports function keys (F1-F12)",
+      "Supports letter and number keys",
+      "Visual feedback when setting keybind",
+      "Persistent keybind saved across sessions",
+      "Default: Right Shift"
+    ]
+  },
+  {
+    "name": "Streamer Mode",
+    "category": "Privacy",
+    "description": "Hide sensitive information while streaming or recording",
+    "features": [
+      "Hide all usernames and short IDs",
+      "Blurs usernames with 14px blur effect",
+      "Toggle on/off in settings",
+      "Persistent across sessions",
+      "Auto-applies when game launches"
+    ]
+  },
+  {
+    "name": "Account Management",
+    "category": "UI",
+    "description": "Manage multiple Kirka accounts seamlessly",
+    "features": [
+      "Save multiple accounts",
+      "Switch between accounts with one click",
+      "Auto-login with saved token",
+      "View account name, tag, and level",
+      "Remove accounts",
+      "Persistent account storage"
+    ]
+  },
+  {
+    "name": "Auto Token Capture",
+    "category": "Security",
+    "description": "Automatically captures and saves your Kirka JWT token",
+    "features": [
+      "Automatic token detection from localStorage",
+      "JWT format validation",
+      "Secure token storage",
+      "Auto-injects token on game launch",
+      "Handles token updates in real-time"
+    ]
+  },
+  {
+    "name": "Client Features Browser",
+    "category": "UI",
+    "description": "Browse and search all available client features",
+    "features": [
+      "Categorized feature list",
+      "Search functionality",
+      "Feature descriptions and details",
+      "Real-time filtering"
+    ]
+  },
+  {
+    "name": "Tools & Resources",
+    "category": "Utility",
+    "description": "Access useful tools and resources for Kirka",
+    "features": [
+      "Curated list of tools",
+      "External links to resources",
+      "Search functionality",
+      "Categorized tools"
+    ]
+  },
+  {
+    "name": "Other Clients",
+    "category": "Community",
+    "description": "Discover other Kirka clients from the community",
+    "features": [
+      "List of community clients",
+      "Client status (active/inactive)",
+      "Platform support information",
+      "Download links",
+      "Developer credits"
+    ]
+  },
+  {
+    "name": "FAQ System",
+    "category": "UI",
+    "description": "Frequently asked questions about the client",
+    "features": [
+      "Common questions and answers",
+      "Security information",
+      "Client usage guidelines",
+      "Community guidelines"
+    ]
+  },
+  {
+    "name": "Credits System",
+    "category": "UI",
+    "description": "Recognize the developers and contributors",
+    "features": [
+      "Developer credits",
+      "Contributor recognition",
+      "Open source attribution"
+    ]
+  },
+  {
+    "name": "Gun Tracker",
+    "category": "Gameplay",
+    "description": "Tracks kills and weapon usage for the active player",
+    "features": [
+      "Real-time kill tracking",
+      "Weapon usage statistics",
+      "Player-specific tracking",
+      "Persistent storage",
+      "Weapon data from remote repository"
     ]
   }
 ]
