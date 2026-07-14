@@ -108,6 +108,26 @@ body {
     gap: 6px;
     -webkit-app-region: no-drag;
 }
+        .kassets-icon {
+            width: 33px;
+            height: 12px;
+            background: var(--bg3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .kassets-icon img {
+            width: 200%;
+            height: 100%;
+        }
+
+        .kassets-icon .fallback-text {
+            color: var(--green);
+            font-weight: 700;
+            font-size: 18px;
+        }
 
 .social-btn {
     width: 32px;
@@ -341,7 +361,7 @@ body {
 .tab-content.active { display: block; }
 
 .content-title {
-    font-family: 'roboto', cursive, system-ui, sans-serif;
+    font-family: "Permanent Marker", cursive;;
     font-size: 1rem;
     font-weight: 700;
     color: #A2A6A2;
@@ -470,7 +490,7 @@ body {
     border-bottom: 1px solid var(--border);
     font-size: 0.75rem;
     font-weight: 700;
-    color: #3a3a3a;
+    color: #acaaaa;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     flex-shrink: 0;
