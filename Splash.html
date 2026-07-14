@@ -27,7 +27,10 @@
 <div class="top-social-icons">
     <a class="social-btn" title="Discord" href="https://discord.gg/r6S3mMyT4K" target="_blank"><i class="fab fa-discord"></i></a>
     <a class="social-btn" title="Website" href="https://ubuntuclient.xyz" target="_blank"><i class="fa-solid fa-globe"></i></a>
+    <a class="social-btn" title="Github" href="https://github.com/OBS-Akuma/ubuntu-client" target="_blank"><i class="fab fa-github"></i></a>
+    <div class="kassets-icon"><a class="social-btn" title="kassets" href="https://kirkacommunityhub.pages.dev" target="_blank"><img src="assets/kassets.png"/></a>
 </div>
+    </div>
 
         <div class="top-bar-spacer"></div>
 
@@ -97,7 +100,9 @@
             <button class="tab-btn" data-tab="otherclients" data-label="Other Clients" title="Other Clients">
                 <i class="fas fa-layer-group"></i>
             </button>
-
+            <button class="tab-btn" data-tab="tradelogs" data-label="Trade Logs" title="Trade Logs">
+                <i class="fas fa-handshake"></i>
+            </button>
             <div class="sidebar-spacer"></div>
             <button class="tab-btn" data-tab="settings" data-label="Settings" title="Settings">
                 <i class="fas fa-cog"></i>
@@ -137,7 +142,7 @@
 
                         <div class="news-panel">
                             <div class="news-panel-header">
-                                <i class="fas fa-newspaper" style="margin-right:6px;opacity:0.5;"></i>Latest News
+                                <i class="fas fa-newspaper" style="margin-right:6px;opacity:0.5;"></i>Notification Center
                             </div>
                             <div class="news-scroll" id="newsScroll"></div>
                         </div>
@@ -160,6 +165,14 @@
                                 <option value="https://cloudconverts.com/">cloudconverts.com</option>
                             </select>
                         </div>
+                        <div class="option">
+                            <div class="left"><span>End Game Message</span><span class="description">Message to auto-send when the game timer hits 0:01</span></div>
+                            <input type="text" id="endgame_message_text" class="setting-input" placeholder="Good Game" value="Good Game" style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 12px;color:var(--text);width:200px;font-size:0.85rem;">
+                        </div>
+                        <div class="option">
+                            <div class="left"><span>Fake banned</span><span class="description">makes it look like you are banned.</span></div>
+                            <div class="checkbox"><input type="checkbox" id="BannedToggle"><label for="BannedToggle"></label></div>
+                        </div>
                     </div>
 
                     
@@ -174,7 +187,27 @@
                             <div class="checkbox"><input type="checkbox" id="in_process_gpu" checked><label for="in_process_gpu"></label></div>
                         </div>
                     </div>
-
+                    <div class="settings-group">
+                        <div class="option">
+                            <div class="left"><span>Client Badges and gradient</span><span class="description">Chnage what badges and gradient you see!</span></div>
+                            <select id="Badge_api">
+                                <option value="https://raw.githubusercontent.com/OBS-Akuma/KirkaBadges/refs/heads/main/Json/badge.json">Smudgy</option>
+                                <option value="https://raw.githubusercontent.com/zVipexx/dawn-client/refs/heads/main/badges.json">Dawn</option>
+                                <option value="/">Redline</option>
+                                <option value="/">None</option>
+                            </select>
+                        </div>
+                        <div class="option">
+    <div class="left">
+        <span>Custom badge and gradient api</span>
+        <span class="description">Set your own badge and gradients</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+        <input type="text" id="Badge-gradient-api-inout" class="setting-input" placeholder="https://.../.json" value="" style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 12px;color:var(--text);width:150px;font-size:0.85rem;">
+    </div>
+</div>  
+                    </div>
+                    
                     
                     <div class="content-title">Discord Rich Presence</div>
                     <div class="settings-group">
@@ -194,11 +227,8 @@
                             <div class="left"><span>Show Profile Viewing</span><span class="description">Reveal which profile you're viewing</span></div>
                             <div class="checkbox"><input type="checkbox" id="discord_rpc_show_profile" checked><label for="discord_rpc_show_profile"></label></div>
                         </div>
-                        <div class="option">
-                            <div class="left"><span>Show launcher rpc Status</span><span class="description">Shows when you are or arn't in the launcher.</span></div>
-                            <div class="checkbox"><input type="checkbox" id="discord_rpc_show_launcher" checked><label for="discord_rpc_show_launcher"></label></div>
-                        </div>
                     </div>
+                    
 
                     
                     <div class="content-title">Keybinds</div>
@@ -210,7 +240,7 @@
                         <div class="option">
     <div class="left">
         <span>Top</span>
-        <span class="description">Sends a the "{message_up}" based on what key you press.</span>
+        <span class="description">Sends a the What ever you but it as based on what key you press.</span>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
         <input type="text" id="message_up" class="setting-input" placeholder="Up message" value="Up" style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 12px;color:var(--text);width:150px;font-size:0.85rem;">
@@ -220,7 +250,7 @@
 <div class="option">
     <div class="left">
         <span>Down</span>
-        <span class="description">Sends a the "{message_down}" based on what key you press.</span>
+        <span class="description"></span>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
         <input type="text" id="message_down" class="setting-input" placeholder="Down message" value="Down" style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 12px;color:var(--text);width:150px;font-size:0.85rem;">
@@ -230,7 +260,7 @@
 <div class="option">
     <div class="left">
         <span>Left</span>
-        <span class="description">Sends a the "{message_left}" based on what key you press.</span>
+        <span class="description"></span>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
         <input type="text" id="message_left" class="setting-input" placeholder="Left message" value="Left" style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 12px;color:var(--text);width:150px;font-size:0.85rem;">
@@ -240,7 +270,7 @@
 <div class="option">
     <div class="left">
         <span>Right</span>
-        <span class="description">Sends a the "{message_right}" based on what key you press.</span>
+        <span class="description"></span>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
         <input type="text" id="message_right" class="setting-input" placeholder="Right message" value="Right" style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 12px;color:var(--text);width:150px;font-size:0.85rem;">
@@ -249,14 +279,6 @@
 </div>
 </div>
 
-                    
-                    <div class="content-title">End Game Message</div>
-                    <div class="settings-group">
-                        <div class="option">
-                            <div class="left"><span>End Game Message</span><span class="description">Message to auto-send when the game timer hits 0:01</span></div>
-                            <input type="text" id="endgame_message_text" class="setting-input" placeholder="Good Game" value="Good Game" style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 12px;color:var(--text);width:200px;font-size:0.85rem;">
-                        </div>
-                    </div>
 
                     
                     <div class="content-title">Account</div>
@@ -272,7 +294,7 @@
                         </div>
                         <div class="option">
                             <div class="left"><span>Enable Ktiers</span><span class="description">Allows you to see ktiers Related Things.</span></div>
-                            <div class="checkbox"><input type="checkbox" id="Ktiers" checked><label for="Ktiers"></label></div>
+                            <div class="checkbox"><input type="checkbox" id="Ktiers"><label for="Ktiers"></label></div>
                         </div>
                     </div>
 
@@ -285,7 +307,7 @@
                         </div>
                         <div class="option">
                             <div class="left"><span>General News</span><span class="description">Froke-related news</span></div>
-                            <div class="checkbox"><input type="checkbox" class="category-toggle" id="general_news" data-category="general"><label for="general_news"></label></div>
+                            <div class="checkbox"><input type="checkbox" class="category-toggle" id="general_news" data-category="general" checked><label for="general_news"></label></div>
                         </div>
                         <div class="option">
                             <div class="left"><span>Promotional News</span><span class="description">Live events</span></div>
@@ -299,7 +321,21 @@
                             <div class="left"><span>Alerts</span><span class="description">Important alerts</span></div>
                             <div class="checkbox"><input type="checkbox" class="category-toggle" id="alert_news" data-category="alert"><label for="alert_news"></label></div>
                         </div>
+                        <div class="option">
+                            <div class="left"><span>Giveaway News</span><span class="description">Tells you if i giveaway is going on in kirka chat > what for and has a btn to send /enter it on all accounts with one click</span></div>
+                            
+                            <div class="checkbox"><input type="checkbox" class="category-toggle" id="Giveaway_news" data-category="Giveaway" checked><label for="Giveaway_news"></label></div>
+                        </div>
+                        <div class="option">
+                            <div class="left"><span>Other Client News</span><span class="description">Add more news from other Clients (this can end up in news dupes ;3)</span></div>
+                            <select id="News_api">
+                                <option value="/">None</option>
+                                <option value="SmudgyNews.json">Smudgy</option>
+                                <option value="DawnNews.json">Dawn</option>
+                            </select>
+                        </div>
                     </div>
+
                     
                     
                     <div class="content-title">Streamer Mode</div>
@@ -310,13 +346,7 @@
                         </div>
                     </div>
 
-                  <div class="content-title">miscellaneous</div>
-                    <div class="settings-group">
-                        <div class="option">
-                            <div class="left"><span>Fake banned</span><span class="description">makes it look like you are banned.</span></div>
-                            <div class="checkbox"><input type="checkbox" id="BannedToggle" checked><label for="BannedToggle"></label></div>
-                        </div>
-                        </div>
+
                         </div>
 
                 <div id="scripts-tab" class="tab-content">
@@ -375,6 +405,14 @@
                             <div class="faq-question">Will I get banned for using Ubuntu client?</div>
                             <div class="faq-answer">Not that we're aware of. If Xip or kirka staff flags something, we will take action.</div>
                         </div>
+                        <div class="faq-item">
+                            <div class="faq-question">How do i get small guns?</div>
+                            <div class="faq-answer">Go to the Plugins tab of the in-game menu And you will find it, it's named "Weapon Customization"</div>
+                        </div>
+                        <div class="faq-item">
+                            <div class="faq-question">How do i Chnage my Gun texture?</div>
+                            <div class="faq-answer">Open your pc files and go to documents/Ubuntu/assets/img Then add your skin image with the name of the Texture you want to switch it to.</div>
+                        </div>
                     </div>
                 </div>
 
@@ -399,11 +437,24 @@
                 </div>
 
                 
+                <div id="tradelogs-tab" class="tab-content">
+                    <div class="content-title">Trade logs</div>
+                    <div id="clientsGridContainer">
+                        <div class="clients-grid" id="TradeGrid"></div>
+                        <div id="TradesLoading" class="no-results"><i class="fas fa-spinner fa-pulse"></i> Loading Trades...</div>
+                        <div id="TradesNoResults" class="no-results" style="display:none;">No clients found.</div>
+                        <div id="TradesError" class="no-results" style="display:none;">Failed to load Trade list.</div>
+                    </div>
+                </div>
+
+                
                 <div id="credits-tab" class="tab-content">
                     <div class="content-title">Credits</div>
                     <div class="credits-list">
                         <span class="title">A Special Thanks To These People</span>
                         <p>just me heheheeheeeee</p>
+                        <p>"Akumaware" for promoting the Client atp</p>
+                        <p>Imnotkoolkid for the Weapon Customization Plugin</p>
                     </div>
                 </div>
 
