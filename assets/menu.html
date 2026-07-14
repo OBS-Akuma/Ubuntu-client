@@ -3,71 +3,197 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ubuntu Menu</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet" />
+    <title>UbuntuClient</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="assets/menu.css">
 </head>
 <body>
-    <div id="nameless-menu-overlay" style="display: block;">
-        <div class="nameless-menu">
 
-            
-            <div class="menu-header">
-                <i class="fas fa-sliders-h"></i> client settings
-                <button class="menu-close" style="margin-left:auto;background:none;border:none;color:#666;cursor:pointer;font-size:0.7rem;padding:2px 6px;border-radius:4px;">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            
-            <div class="setting-item">
-                <span class="setting-label"><i class="fas fa-palette"></i> Theme</span>
-                <select class="setting-select" id="client-theme-select">
-                    <option value="nameless" selected>Nameless</option>
-                    <option value="celeste">Celeste</option>
-                </select>
-            </div>
-
-            
-            <div class="setting-item">
-                <span class="setting-label"><i class="fas fa-crosshairs"></i> Hitmarker</span>
-                <input type="text" class="setting-input" id="input-hitmarker" placeholder="https://.../.png" />
-            </div>
-
-            
-            <div class="setting-item">
-                <span class="setting-label"><i class="fas fa-skull"></i> Kill Icon</span>
-                <input type="text" class="setting-input" id="input-killicon" placeholder="https://.../.png" />
-            </div>
-
-            
-            <div class="setting-item">
-                <span class="setting-label"><i class="fas fa-code"></i> Custom CSS</span>
-                <input type="text" class="setting-input" id="input-custom-css" placeholder="https://.../.css" />
-            </div>
-
-            
-            <div class="menu-divider"></div>
-
-            
-            <div class="setting-item" style="border-bottom: none; padding-bottom: 0.1rem;">
-                <span class="setting-label"><i class="fas fa-search-plus"></i> Zoom</span>
-                <div class="zoom-group">
-                    <span class="zoom-btn" id="zoom-out"><i class="fas fa-minus"></i></span>
-                    <span class="zoom-value" id="zoom-display">100%</span>
-                    <span class="zoom-btn" id="zoom-in"><i class="fas fa-plus"></i></span>
-                    <span class="zoom-btn" id="zoom-reset" style="font-size:0.5rem; padding:0.15rem 0.4rem;"><i class="fas fa-undo"></i></span>
+    <div class="ubuntu-client">
+        <!-- TOP BAR -->
+        <div class="top-bar">
+            <div class="logo-area">
+                <div class="client-icon">
+                    <img src="assets/icon.png" alt="Ubuntu Client" onerror="this.onerror=null; this.parentElement.innerHTML='<span class=\'fallback-text\'>U</span>';" />
                 </div>
+                <div class="client-name">Ubuntu Client</div>
             </div>
+        <div class="top-bar-divider"></div>
 
-            
-            <div style="font-size:0.5rem; color:#222; text-align:center; padding-top:0.4rem; letter-spacing:0.03em;">
-                ubuntu client
-            </div>
+<div class="top-social-icons">
+    <a class="social-btn" title="Discord" href="https://discord.gg/r6S3mMyT4K" target="_blank"><i class="fab fa-discord"></i></a>
+    <a class="social-btn" title="Website" href="https://ubuntuclient.xyz" target="_blank"><i class="fa-solid fa-globe"></i></a>
+    <a class="social-btn" title="Github" href="https://github.com/OBS-Akuma/ubuntu-client" target="_blank"><i class="fab fa-github"></i></a>
+    <div class="kassets-icon"><a class="social-btn" title="kassets" href="https://kirkacommunityhub.pages.dev" target="_blank"><img src="assets/kassets.png"/></a>
+</div>
+</div>
+
+        <div class="top-bar-spacer"></div>
+                    <div class="search-container">
+            <i class="fas fa-search"></i>
+            <input type="text" id="globalSearch" placeholder="Search.">
+            <button class="search-clear" id="searchClearBtn"><i class="fas fa-times-square"></i></button>
+        </div>
 
         </div>
+
+        <!-- CONTENT -->
+        <div class="content-wrapper">
+            <div class="content-panel">
+                <!-- TABS: UI, Plugins, Client with icons -->
+                <div class="tabs">
+                    <button class="tab active" data-tab="ui">
+                        <i class="fas fa-solid fa-desktop"></i>UI
+                    </button>
+                    <button class="tab" data-tab="plugins">
+                        <i class="fas fa-code"></i>Plugins
+                    </button>
+                    <button class="tab" data-tab="client">
+                        <i class="fas fa-cog"></i>Client
+                    </button>
+                    <button class="tab" data-tab="credits">
+                        <i class="fas fa-heart"></i>credits
+                    </button>
+                </div>
+
+                <!-- UI TAB -->
+                <div class="tab-content active" id="ui-tab">
+                    <!-- CSS LINK INPUT WITH TOGGLE -->
+                    <div class="content-title">CSS*</div>
+                    <div class="css-link-row">
+                        <input type="text" placeholder="https://.../.css" value="" />
+                        <span class="toggle-label" id="toggleStatus">On</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="cssToggle" />
+                            <span class="toggle-slider"></span>
+                        </label>
+                        
+                        
+                    </div>
+
+                    <!-- RAW CSS DROPDOWN (collapsible) -->
+                    <div class="raw-css-dropdown">
+                        <div class="raw-css-header" id="rawCssHeader">
+                            <div class="left">
+                                <span>Raw CSS editor</span>
+                            </div>
+                            <span class="arrow" id="css-link-row">Click to Expand</span>
+                        </div>
+                        <div class="raw-css-body" id="rawCssBody">
+                            <textarea placeholder="/* Paste your custom CSS here */"></textarea>
+                        </div>  
+                    <div class="content-title" style="margin-top:18px;">Menu Style</div>
+                    <select class="theme-dropdown" id="MenuThemeSelector">
+                        <option value="top">Tabs On the tob</option>
+                        <option value="right">Tabs On the Right</option>
+                        <option value="left">Tabs On the Left</option>
+                        <option value="Bottom">Tabs On the Bottom</option>
+                    </select>
+                    </div>
+
+                    <!-- Community Themes Dropdown -->
+                    <div class="content-title" style="margin-top:18px;">Community Themes</div>
+                    <select class="theme-dropdown" id="communityThemeSelector">
+                        <option value="">Loading themes...</option>
+                    </select>
+                    <div class="content-title">Change Images >w<</div>
+                    <div class="icon-link-row">
+                        <input type="text" placeholder="Lobby Logo Image" value="" />
+                        <span class="toggle-label" id="toggleStatus">On</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="LobbyLogoToggle" />
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="icon-link-row">
+                        <input type="text" placeholder="Hitmarker Image" value="" />
+                        <span class="toggle-label" id="toggleStatus">On</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="HitmarkerlogoToggle" />
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="icon-link-row">
+                        <input type="text" placeholder="Kill image" value="" />
+                        <span class="toggle-label" id="toggleStatus">On</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="KilllogoToggle" />
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="icon-link-row">
+                        <input type="text" placeholder="Chest Image" value="" />
+                        <span class="toggle-label" id="toggleStatus">On</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="ChestlogoToggle" />
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="icon-link-row">
+                        <input type="text" placeholder="Pack image" value="" />
+                        <span class="toggle-label" id="toggleStatus">On</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="PacklogoToggle" />
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>  
+
+                <!-- PLUGINS TAB -->
+                <div class="tab-content" id="plugins-tab">
+                    <!-- No plugins found message -->
+                    <div class="content-title">Available Plugin(s)</div>
+                    <div class="no-plugins-message">
+                        <div class="icon"><i class="fas fa-code"></i></div>
+                        <p>No Scripts?</p>
+                        <p class="sub">Try installing some below or add some to your scripts file</p>
+                        <button class="no-plugins-btn" id="takeMeThereBtn">
+                            Take me there
+                            <svg viewBox="0 0 24 24">
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                <polyline points="12 5 19 12 12 19"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- API Plugins from the new JSON -->
+                    <div class="plugins-grid" id="apiPluginsGrid">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+                <div class="tab-content" id="credits-tab">
+                    <!-- No plugins found message -->
+                    <div class="content-title">Credits</div>
+                    <div class="no-plugins-message">
+                        <div class="icon"><i class="fas fa-heart"></i></div>
+                        <p>A special Thanks To These People</p>
+                        <p>just me heheheeheeeee</p>
+                        <p>"Akumaware" for promoting the Client atp</p>
+                        <p>Imnotkoolkid for the Weapon Customization Plugin</p>
+                    </div>
+                </div>
+
+                <!-- CLIENT TAB -->
+                <div class="tab-content" id="client-tab">
+                    <div class="content-title">Client Settings</div>
+                    <div class="client-actions">
+                        <button class="client-btn import-btn">Import Settings</button>
+                        <button class="client-btn export-btn">Export Settings</button>
+                        <button class="client-btn export-btn">Open Scripts File</button>
+                        <button class="client-btn export-btn">Open Sounds file</button>
+                    </div>
+                    <div style="margin-top:16px; padding:14px 16px; background:var(--bg2); border-radius:8px; border:1px solid var(--border);">
+                        <p style="color:#666; font-size:0.8rem; line-height:1.6;">
+                            Import or export your client configuration, including themes, CSS, and plugin settings.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+<script src="menu.js"></script>
+    <script>
+    </script>
+
 </body>
 </html>
