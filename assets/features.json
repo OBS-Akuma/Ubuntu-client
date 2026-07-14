@@ -14,12 +14,13 @@
     "category": "UI",
     "description": "Displays customizable news cards with categories and rich media",
     "features": [
-      "General, promotional, event, alert categories",
+      "General, promotional, event, alert, giveaway categories",
       "Images and badges (NEW/LIVE)",
       "Clickable links",
       "Fetches news data from remote repository",
       "Toggle news on/off",
-      "Filter news by category"
+      "Filter news by category",
+      "Other client news integration (Smudgy, Dawn)"
     ]
   },
   {
@@ -32,7 +33,8 @@
       "Shows what profile you're viewing",
       "Shows launcher status",
       "Per-category visibility toggles",
-      "Master toggle to disable/enable all RPC"
+      "Master toggle to disable/enable all RPC",
+      "Profile image support for Discord presence"
     ]
   },
   {
@@ -54,21 +56,24 @@
       "Weapon breakdown with percentages",
       "Last kill tracking",
       "Persistent storage in Documents/Ubuntu/Activity.json",
-      "Visual charts and statistics display"
+      "Visual charts and statistics display",
+      "Player-specific kill tracking"
     ]
   },
   {
     "name": "Custom Keybinds",
     "category": "UI",
-    "description": "Customize keybinds to toggle the in-game menu",
+    "description": "Customize keybinds for menu toggling and quick messages",
     "features": [
       "Customizable menu toggle keybind",
+      "Directional keybinds (Up, Down, Left, Right) for quick chat messages",
+      "Custom messages for each direction key",
       "Supports modifier keys (Shift, Ctrl, Alt, Win)",
       "Supports function keys (F1-F12)",
       "Supports letter and number keys",
       "Visual feedback when setting keybind",
-      "Persistent keybind saved across sessions",
-      "Default: Right Shift"
+      "Persistent keybinds saved across sessions",
+      "Default: Right Shift for menu, Arrow keys for messages"
     ]
   },
   {
@@ -80,7 +85,8 @@
       "Blurs usernames with 14px blur effect",
       "Toggle on/off in settings",
       "Persistent across sessions",
-      "Auto-applies when game launches"
+      "Auto-applies when game launches",
+      "Works in-game and in launcher"
     ]
   },
   {
@@ -93,7 +99,39 @@
       "Auto-login with saved token",
       "View account name, tag, and level",
       "Remove accounts",
-      "Persistent account storage"
+      "Persistent account storage in token.txt",
+      "Profile avatar caching and display"
+    ]
+  },
+  {
+    "name": "Badge & Gradient System",
+    "category": "UI",
+    "description": "Display custom badges and gradients for players",
+    "features": [
+      "Support for multiple badge sources (Smudgy, Dawn, Redline, Custom)",
+      "Custom API support for user-created badge lists",
+      "Gradient name styling with rotation and color stops",
+      "Badge images with linked and booster badges",
+      "Automatic badge application to player names",
+      "Real-time updates when settings change",
+      "Multiple badge display in order of priority",
+      "Custom font support (Smudgy)",
+      "Persistent settings across sessions",
+      "Automatic cache clearing on settings change"
+    ]
+  },
+  {
+    "name": "KTiers Integration",
+    "category": "Gameplay",
+    "description": "Display KTiers rankings and badges for players",
+    "features": [
+      "Shows KTiers rank badge next to player names",
+      "Displays tier name and points",
+      "Visual tier icons with gradients",
+      "Auto-refreshes every 5 minutes",
+      "Toggle on/off in settings",
+      "Updates on account switch",
+      "Persistent settings"
     ]
   },
   {
@@ -105,7 +143,8 @@
       "JWT format validation",
       "Secure token storage",
       "Auto-injects token on game launch",
-      "Handles token updates in real-time"
+      "Handles token updates in real-time",
+      "Multi-account token management"
     ]
   },
   {
@@ -116,7 +155,8 @@
       "Categorized feature list",
       "Search functionality",
       "Feature descriptions and details",
-      "Real-time filtering"
+      "Real-time filtering",
+      "Dynamic feature loading from JSON"
     ]
   },
   {
@@ -127,7 +167,8 @@
       "Curated list of tools",
       "External links to resources",
       "Search functionality",
-      "Categorized tools"
+      "Categorized tools",
+      "Dynamic tool loading from JSON"
     ]
   },
   {
@@ -139,28 +180,8 @@
       "Client status (active/inactive)",
       "Platform support information",
       "Download links",
-      "Developer credits"
-    ]
-  },
-  {
-    "name": "FAQ System",
-    "category": "UI",
-    "description": "Frequently asked questions about the client",
-    "features": [
-      "Common questions and answers",
-      "Security information",
-      "Client usage guidelines",
-      "Community guidelines"
-    ]
-  },
-  {
-    "name": "Credits System",
-    "category": "UI",
-    "description": "Recognize the developers and contributors",
-    "features": [
       "Developer credits",
-      "Contributor recognition",
-      "Open source attribution"
+      "Dynamic client list from remote repository"
     ]
   },
   {
@@ -171,8 +192,126 @@
       "Real-time kill tracking",
       "Weapon usage statistics",
       "Player-specific tracking",
-      "Persistent storage",
-      "Weapon data from remote repository"
+      "Persistent storage in Activity.json",
+      "Weapon data from remote repository",
+      "Kill counter with weapon breakdown"
+    ]
+  },
+  {
+    "name": "Profile Avatars",
+    "category": "UI",
+    "description": "Display profile avatars for accounts and players",
+    "features": [
+      "Fetches profile images from Smudgy API",
+      "Caches images locally",
+      "Auto-refreshes cache after 1 hour",
+      "Image change detection",
+      "Displays avatars in user pill and account list",
+      "Fallback to default user icon on error"
+    ]
+  },
+  {
+    "name": "End Game Message",
+    "category": "Gameplay",
+    "description": "Automatically sends a message when the game timer hits 0:01",
+    "features": [
+      "Customizable end game message",
+      "Auto-sends when timer hits 0:01",
+      "Works with Shift+C shortcut",
+      "Persistent message saved across sessions",
+      "Default: 'Good Game'"
+    ]
+  },
+  {
+    "name": "Directional Quick Chat",
+    "category": "UI",
+    "description": "Send predefined messages using direction keys",
+    "features": [
+      "Custom messages for Up, Down, Left, Right keys",
+      "Configurable keybinds for each direction",
+      "Message cooldown to prevent spam",
+      "Auto-focus chat input",
+      "Persistent messages and keybinds",
+      "Default messages: Up, Down, Left, Right"
+    ]
+  },
+  {
+    "name": "Fake Banned Mode",
+    "category": "UI",
+    "description": "Makes it look like you are banned from the game",
+    "features": [
+      "Toggle on/off in settings",
+      "Visual ban overlay",
+      "Persistent across sessions"
+    ]
+  },
+  {
+    "name": "Trade Logs",
+    "category": "Gameplay",
+    "description": "View and track your trade history",
+    "features": [
+      "Display trade logs",
+      "Trade history tracking",
+      "Filter and search trades"
+    ]
+  },
+  {
+    "name": "FAQ System",
+    "category": "UI",
+    "description": "Frequently asked questions about the client",
+    "features": [
+      "Common questions and answers",
+      "Security information",
+      "Client usage guidelines",
+      "Community guidelines",
+      "Troubleshooting tips"
+    ]
+  },
+  {
+    "name": "Credits System",
+    "category": "UI",
+    "description": "Recognize the developers and contributors",
+    "features": [
+      "Developer credits",
+      "Contributor recognition",
+      "Open source attribution",
+      "Special thanks section"
+    ]
+  },
+  {
+    "name": "Settings Persistence",
+    "category": "System",
+    "description": "All client settings are saved and restored across sessions",
+    "features": [
+      "Settings saved to settings.txt",
+      "Persistent across app restarts",
+      "Cross-tab sync via storage events",
+      "Multiple setting categories",
+      "Real-time setting updates"
+    ]
+  },
+  {
+    "name": "In-Game Menu System",
+    "category": "UI",
+    "description": "Custom overlay menu accessible in-game",
+    "features": [
+      "Toggle with customizable keybind",
+      "Right-click to open",
+      "Zoom controls (50% - 200%)",
+      "Menu actions (reload, about, discord)",
+      "Setting inputs for various options",
+      "Persistent zoom level"
+    ]
+  },
+  {
+    "name": "Search System",
+    "category": "UI",
+    "description": "Global search across features, tools, and clients",
+    "features": [
+      "Real-time search filtering",
+      "Clear button for search",
+      "Search across multiple categories",
+      "Instant results"
     ]
   }
 ]

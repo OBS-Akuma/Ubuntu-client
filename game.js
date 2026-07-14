@@ -3,11 +3,8 @@ const path = require('path');
 const fs = require('fs');
 const DiscordRPC = require('./discord.js');
 
-
 let discordRPC = null;
 let gameWindow = null;
-
-
 
 
 function createGameWindow(settings = {}) {
@@ -94,6 +91,17 @@ function createGameWindow(settings = {}) {
   console.log('[Game] Hide usernames setting from launcher:', hideUsernames);
   console.log('[Game] Menu keybind from launcher:', menuKeybind);
   console.log('[Game] Endgame message from launcher:', endgameMessage);
+
+
+  // Read the badge module source code to inject it into the page
+  let badgeModuleSource = '';
+  try {
+    // This reads the badges.js file and stores it as a string
+    badgeModuleSource = fs.readFileSync(path.join(__dirname, 'badges.js'), 'utf8');
+    console.log('[Ubuntu Badges] Loaded badge module source, length:', badgeModuleSource.length);
+  } catch (e) {
+    console.error('[Ubuntu Badges] Failed to load badge module:', e.message);
+  }
 
 
   const menuScript = `
@@ -1074,7 +1082,190 @@ function createGameWindow(settings = {}) {
     })();
   `;
 
-  const combinedScript = injectionScript + '\n' + gunTrackerScript + '\n' + menuScript + '\n' + usernameHidingScript + '\n' + endGameMessageScript;
+
+  // UPDATED: Ubuntu Badge System Script - Injects the badge module source code
+  const badgeScript = `
+    (function() {
+      console.log('[Ubuntu Badges] Initializing badge system...');
+      
+      // Load the badge module source code
+      try {
+        // This executes the badge module code in the page context
+        ${badgeModuleSource}
+        console.log('[Ubuntu Badges] Badge module loaded successfully');
+      } catch (e) {
+        console.error('[Ubuntu Badges] Failed to load badge module:', e);
+      }
+      
+      // Store reference to the badge module
+      if (typeof module !== 'undefined' && module.exports) {
+        window.ubuntuBadges = module.exports;
+        console.log('[Ubuntu Badges] Badge module exposed as window.ubuntuBadges');
+      } else {
+        console.error('[Ubuntu Badges] Badge module not found after loading');
+        return;
+      }
+      
+      // Apply badges to all player elements
+      async function applyUbuntuBadgesToAllPlayers() {
+        const elements = document.querySelectorAll('.nickname, .player-name .nickname, .teammate-name, .killer-name, .name-kill');
+        console.log('[Ubuntu Badges] Found', elements.length, 'elements to process');
+        
+        for (const element of elements) {
+          let shortId = null;
+          
+          // Try to get shortId from various sources
+          if (element.closest) {
+            const parent = element.closest('[data-shortid]');
+            if (parent) {
+              shortId = parent.dataset.shortid;
+            }
+          }
+          
+          if (!shortId) {
+            const shortIdElem = element.parentElement?.querySelector('.short-id');
+            if (shortIdElem) {
+              shortId = shortIdElem.textContent?.trim()?.replace('#', '');
+            }
+          }
+          
+          if (!shortId) {
+            const text = element.textContent || '';
+            const match = text.match(/#([A-Z0-9]+)/);
+            if (match) {
+              shortId = match[1];
+            }
+          }
+          
+          if (shortId) {
+            try {
+              // Get existing local customizations
+              const customizations = JSON.parse(localStorage.getItem('ubuntu-customizations') || '[]');
+              const localEntry = customizations.find(c => c.shortId === shortId);
+              const existingBadges = localEntry?.badges || [];
+              const existingGradient = localEntry?.gradient || null;
+              
+              // Get badge config from the Ubuntu badge system
+              const badgeConfig = await window.ubuntuBadges.getUserBadges(shortId, { 
+                redlineData: redlineData,
+                existingBadges: existingBadges,
+                existingGradient: existingGradient
+              });
+              
+              if (badgeConfig) {
+                console.log('[Ubuntu Badges] Applying badge config for', shortId, 'from source:', badgeConfig.sourceName || badgeConfig.source);
+                // Get settings for animations
+                const settings = { animations: localStorage.getItem('menu_animations') === 'true' };
+                window.ubuntuBadges.applyBadgesToElement(element, badgeConfig, settings);
+              } else {
+                // Remove badges if no config found
+                window.ubuntuBadges.removeBadgesFromElement(element);
+              }
+            } catch (e) {
+              console.error('[Ubuntu Badges] Failed to apply badges to element:', e);
+            }
+          }
+        }
+      }
+
+      // Watch for new elements being added to the DOM
+      function watchForBadgeElements() {
+        const observer = new MutationObserver((mutations) => {
+          let needsUpdate = false;
+          
+          for (const mutation of mutations) {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+              for (const node of mutation.addedNodes) {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                  if (node.matches && node.matches('.nickname, .player-name .nickname, .teammate-name, .killer-name, .name-kill')) {
+                    needsUpdate = true;
+                    break;
+                  }
+                  if (node.querySelector && node.querySelector('.nickname, .player-name .nickname, .teammate-name, .killer-name, .name-kill')) {
+                    needsUpdate = true;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          
+          if (needsUpdate) {
+            console.log('[Ubuntu Badges] New elements detected, updating badges...');
+            setTimeout(applyUbuntuBadgesToAllPlayers, 100);
+          }
+        });
+        
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true
+        });
+        
+        return observer;
+      }
+
+      // Listen for settings changes
+      function setupUbuntuSettingsListener() {
+        document.addEventListener('ubuntu-settings-changed', function(e) {
+          if (e.detail.setting === 'Ubuntu_Badge_api' || e.detail.setting === 'Ubuntu_Badge_custom_api') {
+            console.log('[Ubuntu Badges] Settings changed, refreshing badges...');
+            window.ubuntuBadges.clearBadgeCache();
+            setTimeout(applyUbuntuBadgesToAllPlayers, 500);
+          }
+        });
+        
+        window.addEventListener('storage', function(e) {
+          if (e.key === 'Ubuntu_Badge_api' || e.key === 'Ubuntu_Badge_custom_api') {
+            console.log('[Ubuntu Badges] Storage changed, refreshing badges...');
+            window.ubuntuBadges.clearBadgeCache();
+            setTimeout(applyUbuntuBadgesToAllPlayers, 500);
+          }
+        });
+        
+        console.log('[Ubuntu Badges] Settings listeners attached');
+      }
+
+      // Initialize the badge system
+      setTimeout(async () => {
+        try {
+          // Get settings from launcher
+          try {
+            const { ipcRenderer } = window.require('electron');
+            const settings = await ipcRenderer.invoke('get-settings');
+            window.ubuntuBadges.setClientSettings(settings);
+          } catch (e) {
+            console.log('[Ubuntu Badges] Could not get settings from launcher, using defaults');
+          }
+
+          // Log current settings
+          console.log('[Ubuntu Badges] Current settings:');
+          console.log('  Badge API:', window.ubuntuBadges.getBadgeApiSetting());
+          console.log('  Custom API:', window.ubuntuBadges.getCustomBadgeApi());
+          console.log('  Badges enabled:', window.ubuntuBadges.areBadgesEnabled());
+          console.log('  Active source:', window.ubuntuBadges.getActiveBadgeSource());
+
+          // Apply badges to all existing elements
+          await applyUbuntuBadgesToAllPlayers();
+
+          // Start watching for new elements
+          watchForBadgeElements();
+
+          // Setup settings listeners
+          setupUbuntuSettingsListener();
+
+          // Expose functions globally for debugging
+          window.refreshUbuntuBadges = applyUbuntuBadgesToAllPlayers;
+          
+          console.log('[Ubuntu Badges] Badge system initialized successfully');
+        } catch (e) {
+          console.error('[Ubuntu Badges] Failed to initialize badge system:', e);
+          console.error('[Ubuntu Badges] Error stack:', e.stack);
+        }
+      }, 100);
+    })();
+  `;
+
+  const combinedScript = injectionScript + '\n' + gunTrackerScript + '\n' + menuScript + '\n' + usernameHidingScript + '\n' + endGameMessageScript + '\n' + badgeScript;
 
 
   const settingsPath = path.join(ubuntuFolder, 'settings.txt');
