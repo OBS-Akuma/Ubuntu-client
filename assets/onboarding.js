@@ -4,7 +4,7 @@
 
 
 
-    const DEV_MODE = true;
+    const DEV_MODE = true; // turn is this of on Real release dumbass (note)
 
     const SWAPPER_GIF_PATH = 'assets/swapper-demo.gif';
 
