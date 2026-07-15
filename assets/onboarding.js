@@ -4,7 +4,7 @@
 
 
 
-    const DEV_MODE = true; // turn is this of on Real release dumbass (note)
+    const DEV_MODE = true;
 
     const SWAPPER_GIF_PATH = 'assets/swapper-demo.gif';
 
@@ -39,7 +39,7 @@
                     <div class="ob-item"><i class="fas fa-wrench"></i><div><b>Tools</b><span>Handy external resources.</span></div></div>
                     <div class="ob-item"><i class="fas fa-layer-group"></i><div><b>Other Clients</b><span>See what else is out there.</span></div></div>
                     <div class="ob-item"><i class="fas fa-handshake"></i><div><b>Trade Logs</b><span>Track your trades.</span></div></div>
-                    <div class="ob-item"><i class="fas fa-cog"></i><div><b>Settings</b><span>Everything below lives here too — you can change it anytime.</span></div></div>
+                    <div class="ob-item"><i class="fas fa-cog"></i><div><b>Settings</b><span>Everything below lives here too you can change it anytime.</span></div></div>
                 </div>
             `
         },
@@ -220,8 +220,8 @@
             id: 'done',
             title: "You're all set",
             body: () => `
-                <p class="ob-p">That's everything to get started. Every setting you just touched — proxy, badges,
-                news, and your keybind — lives in the Settings tab if you ever want to change it.</p>
+                <p class="ob-p">That's everything to get started. Every setting you just touched proxy, badges,
+                news, and your keybind lives in the Settings tab if you ever want to change it.</p>
                 <p class="ob-p">Jump in and have fun.</p>
             `
         }
