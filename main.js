@@ -16,7 +16,7 @@ const KTiersCacheDuration = 5 * 60 * 1000;
 
 const KTiersTiers = [
     { 
-        name: 'Grandmaster', 
+        name: '', 
         minPoints: 150, 
         icon: 'https://ktiers.com/imgs/placements/Grandmaster.svg',
         gradient: 'linear-gradient(135deg, #FFD700, #FFF176, #FFB300)',
@@ -24,7 +24,7 @@ const KTiersTiers = [
         color: '#FFD700'
     },
     { 
-        name: 'Master', 
+        name: '', 
         minPoints: 115, 
         icon: 'https://ktiers.com/imgs/placements/Master.svg',
         gradient: '#fffc5b',
@@ -32,7 +32,7 @@ const KTiersTiers = [
         color: '#fffc5b'
     },
     { 
-        name: 'Ace', 
+        name: '', 
         minPoints: 75, 
         icon: 'https://ktiers.com/imgs/placements/Ace.svg',
         gradient: '#ff8585',
@@ -40,7 +40,7 @@ const KTiersTiers = [
         color: '#ff8585'
     },
     { 
-        name: 'Specialist', 
+        name: '', 
         minPoints: 60, 
         icon: 'https://ktiers.com/imgs/placements/Specialist.svg',
         gradient: '#e66bff',
@@ -48,7 +48,7 @@ const KTiersTiers = [
         color: '#e66bff'
     },
     { 
-        name: 'Cadet', 
+        name: '', 
         minPoints: 35, 
         icon: 'https://ktiers.com/imgs/placements/Cadet.svg',
         gradient: '#8b5cf6',
@@ -56,7 +56,7 @@ const KTiersTiers = [
         color: '#8b5cf6'
     },
     { 
-        name: 'Novice', 
+        name: '', 
         minPoints: 15, 
         icon: 'https://ktiers.com/imgs/placements/Novice.svg',
         gradient: '#0ea5e9',
@@ -64,7 +64,7 @@ const KTiersTiers = [
         color: '#0ea5e9'
     },
     { 
-        name: 'Rookie', 
+        name: '', 
         minPoints: 0, 
         icon: 'https://ktiers.com/imgs/placements/Rookie.svg',
         gradient: '#acacac',
@@ -402,16 +402,44 @@ ipcMain.handle('save-token', async (event, token) => {
   }
 });
 
+// UPDATED: get-token now returns full account data
 ipcMain.handle('get-token', async () => {
   try {
     const accounts = await getAccountsFromFile();
+    console.log('[get-token] Found accounts:', accounts.length);
+    
+    // Find active account
     const active = accounts.find(a => a.active === true);
+    
     if (active && active.token) {
-      return { success: true, token: active.token };
+      console.log('[get-token] Active account found:', active.name, '#', active.tag);
+      // Return both the token and the full account data
+      return { 
+        success: true, 
+        token: active.token,
+        accounts: accounts,
+        activeAccount: active
+      };
     }
-    return { success: false, token: null };
+    
+    // If no active account but we have accounts, use the first one
+    if (accounts.length > 0) {
+      console.log('[get-token] No active account, using first:', accounts[0].name);
+      accounts[0].active = true;
+      await saveAccountsToFile(accounts);
+      return { 
+        success: true, 
+        token: accounts[0].token,
+        accounts: accounts,
+        activeAccount: accounts[0]
+      };
+    }
+    
+    console.log('[get-token] No accounts found');
+    return { success: false, token: null, accounts: [] };
   } catch (e) {
-    return { success: false, token: null };
+    console.error('[get-token] Error:', e);
+    return { success: false, token: null, accounts: [] };
   }
 });
 

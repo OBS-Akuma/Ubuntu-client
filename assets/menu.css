@@ -807,3 +807,4 @@
 
 .checkbox input:checked + label { background: var(--green); }
 .checkbox input:checked + label::after { left: 20px; background: #fff; }
+

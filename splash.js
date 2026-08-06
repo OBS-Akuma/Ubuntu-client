@@ -176,7 +176,6 @@ ipcMain.on('launch-game', () => {
   });
 });
 
-
 app.whenReady().then(() => {
   console.log(' App ready');
   const tokenPath = getTokenFilePath();

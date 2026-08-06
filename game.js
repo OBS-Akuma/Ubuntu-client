@@ -1,8 +1,9 @@
 const { BrowserWindow, app, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { registerShortcuts } = require("./assets/shortcuts.js");
 const DiscordRPC = require('./discord.js');
-
+const { betterStatsAddon } = require('./addons/betterstats.js');
 let discordRPC = null;
 let gameWindow = null;
 
@@ -1265,7 +1266,13 @@ function createGameWindow(settings = {}) {
     })();
   `;
 
-  const combinedScript = injectionScript + '\n' + gunTrackerScript + '\n' + menuScript + '\n' + usernameHidingScript + '\n' + endGameMessageScript + '\n' + badgeScript;
+ const combinedScript = injectionScript + '\n' + 
+                      gunTrackerScript + '\n' + 
+                      menuScript + '\n' + 
+                      usernameHidingScript + '\n' + 
+                      endGameMessageScript + '\n' + 
+                      badgeScript + '\n' + 
+                      '(' + betterStatsAddon.toString() + ')();';
 
 
   const settingsPath = path.join(ubuntuFolder, 'settings.txt');
@@ -1389,19 +1396,24 @@ function createGameWindow(settings = {}) {
   });
 
 
-  gameWindow.webContents.on('did-finish-load', () => {
+gameWindow.webContents.on('did-finish-load', () => {
     console.log(' Game loaded, injecting scripts');
     
     const currentUrl = gameWindow.webContents.getURL();
     applyDiscordPresence(currentUrl);
 
+    // Execute the main combined script
     gameWindow.webContents.executeJavaScript(combinedScript)
-      .then(() => {
-        console.log(' Scripts executed successfully');
-      })
-      .catch(err => console.error(' Script execution failed:', err));
-  });
-
+        .then(() => {
+            console.log(' Scripts executed successfully');
+            // Run the test addon separately
+            return gameWindow.webContents.executeJavaScript('(' + greenSquareAddon.toString() + ')();');
+        })
+        .then(() => {
+            console.log('[Test Addon] Green square loaded successfully!');
+        })
+        .catch(err => console.error(' Script execution failed:', err));
+});
 
   gameWindow.webContents.setUserAgent(
     `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.7103.116 Safari/537.36 Electron/${app.getVersion()} UbuntuClient/${app.getVersion()}`
@@ -1414,6 +1426,8 @@ function createGameWindow(settings = {}) {
     gameWindow.show();
     console.log(' Game window shown');
   });
+
+  registerShortcuts(gameWindow);
 
   gameWindow.on('closed', () => {
     if (discordRPC) {

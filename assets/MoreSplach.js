@@ -727,6 +727,11 @@ function formatKeybindDisplay(key) {
 function applyHideUsernames(enabled) {
     const cssContent = `
         .nickname,
+        .clan-tag,
+        .author-name is-friend,
+        .author-name,
+        .friend-id,
+        .short-id-clipboard,
         .name.profile[data-v-4f4783e0],
         .username[data-v-e3674cae],
         .value[data-v-cb399910],

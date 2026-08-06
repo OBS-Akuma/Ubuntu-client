@@ -4,7 +4,7 @@
 
 
 
-    const DEV_MODE = true;
+    const DEV_MODE = false;
 
     const SWAPPER_GIF_PATH = 'assets/swapper-demo.gif';
 
@@ -239,7 +239,7 @@
                 position: fixed;
                 inset: 0;
                 z-index: 9999;
-                background: rgba(8, 8, 8, 0.92);
+                background: rgba(26, 26, 31, 0.92);
                 backdrop-filter: blur(12px);
                 display: flex;
                 align-items: center;
@@ -256,8 +256,8 @@
                 width: 520px;
                 max-width: 92vw;
                 max-height: 85vh;
-                background: #0d0d0d;
-                border: 1px solid rgba(255,255,255,0.07);
+                background: #22222a;
+                border: 1px solid rgba(255,255,255,0.08);
                 border-radius: 12px;
                 display: flex;
                 flex-direction: column;
@@ -272,24 +272,24 @@
             
             .ob-header {
                 padding: 18px 24px 14px;
-                border-bottom: 1px solid rgba(255,255,255,0.07);
+                border-bottom: 1px solid rgba(255,255,255,0.08);
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                background: #0d0d0d;
+                background: #22222a;
             }
             .ob-title {
                 font-family: "Permanent Marker", cursive;
                 font-size: 1rem;
                 font-weight: 700;
-                color: #A2A6A2;
+                color: #8a8aa0;
                 letter-spacing: 0.1em;
                 text-transform: uppercase;
             }
             .ob-skip {
                 background: none;
                 border: none;
-                color: #444;
+                color: #555568;
                 font-size: 0.75rem;
                 cursor: pointer;
                 font-family: "Inter", sans-serif;
@@ -298,7 +298,7 @@
                 border-radius: 4px;
             }
             .ob-skip:hover {
-                color: #888;
+                color: #aaaabc;
                 background: rgba(255,255,255,0.04);
             }
             
@@ -306,7 +306,7 @@
                 padding: 24px 24px 16px;
                 overflow-y: auto;
                 flex: 1;
-                background: #0d0d0d;
+                background: #22222a;
             }
             .ob-body::-webkit-scrollbar {
                 width: 4px;
@@ -315,22 +315,22 @@
                 background: transparent;
             }
             .ob-body::-webkit-scrollbar-thumb {
-                background: #1e1e1e;
+                background: #33333d;
                 border-radius: 2px;
             }
             
             .ob-p {
-                color: #A2A6A2;
+                color: #aaaabc;
                 font-size: 0.85rem;
                 line-height: 1.6;
                 margin: 0 0 14px;
                 font-weight: 400;
             }
             .ob-p b {
-                color: #ccc;
+                color: #e8e8f0;
             }
             .ob-sub {
-                color: #555;
+                color: #555568;
                 font-size: 0.78rem;
                 margin-top: 16px;
             }
@@ -345,17 +345,17 @@
                 display: flex;
                 gap: 10px;
                 align-items: flex-start;
-                background: #111111;
+                background: #2a2a33;
                 border: 1px solid rgba(255,255,255,0.06);
                 border-radius: 6px;
                 padding: 10px 12px;
                 transition: border-color 0.15s;
             }
             .ob-item:hover {
-                border-color: rgba(26,142,80,0.2);
+                border-color: rgba(46, 204, 113, 0.25);
             }
             .ob-item i {
-                color: #1A8E50;
+                color: #2ECC71;
                 margin-top: 2px;
                 width: 14px;
                 font-size: 0.8rem;
@@ -363,13 +363,13 @@
             .ob-item b {
                 display: block;
                 font-size: 0.78rem;
-                color: #ddd;
+                color: #e8e8f0;
                 font-weight: 600;
             }
             .ob-item span {
                 display: block;
                 font-size: 0.68rem;
-                color: #555;
+                color: #77778a;
                 margin-top: 2px;
                 line-height: 1.4;
             }
@@ -377,11 +377,11 @@
             .ob-select,
             .ob-input {
                 width: 100%;
-                background: #111111;
+                background: #2a2a33;
                 border: 1px solid rgba(255,255,255,0.07);
                 border-radius: 6px;
                 padding: 9px 12px;
-                color: #ddd;
+                color: #e8e8f0;
                 font-size: 0.82rem;
                 font-family: "Inter", sans-serif;
                 transition: border-color 0.15s;
@@ -389,11 +389,11 @@
             }
             .ob-select:focus,
             .ob-input:focus {
-                border-color: #1A8E50;
+                border-color: #2ECC71;
             }
             .ob-select option {
-                background: #0d0d0d;
-                color: #ddd;
+                background: #22222a;
+                color: #e8e8f0;
             }
             
             .ob-toggle-row {
@@ -403,16 +403,16 @@
                 padding: 10px 0;
                 border-bottom: 1px solid rgba(255,255,255,0.04);
                 font-size: 0.82rem;
-                color: #A2A6A2;
+                color: #aaaabc;
             }
             .ob-toggle-row:last-child {
                 border-bottom: none;
             }
             
             .ob-keybind-btn {
-                background: #111111;
+                background: #2a2a33;
                 border: 1px solid rgba(255,255,255,0.07);
-                color: #A2A6A2;
+                color: #aaaabc;
                 border-radius: 6px;
                 padding: 12px 16px;
                 cursor: pointer;
@@ -424,25 +424,25 @@
             }
             .ob-keybind-btn:hover {
                 border-color: rgba(255,255,255,0.15);
-                color: #ddd;
+                color: #e8e8f0;
             }
             .ob-keybind-btn.ob-listening {
-                border-color: #1A8E50;
-                background: rgba(26,142,80,0.08);
-                color: #1A8E50;
+                border-color: #2ECC71;
+                background: rgba(46, 204, 113, 0.08);
+                color: #2ECC71;
             }
             .ob-keybind-btn.ob-set {
-                color: #ddd;
-                border-color: rgba(26,142,80,0.3);
+                color: #e8e8f0;
+                border-color: rgba(46, 204, 113, 0.3);
             }
             
             .ob-code {
                 display: block;
-                background: #080808;
+                background: #1a1a1f;
                 border: 1px solid rgba(255,255,255,0.06);
                 border-radius: 6px;
                 padding: 10px 12px;
-                color: #1A8E50;
+                color: #2ECC71;
                 font-size: 0.78rem;
                 font-family: 'Courier New', monospace;
                 margin: 4px 0 10px;
@@ -454,7 +454,7 @@
                 border-radius: 6px;
                 overflow: hidden;
                 border: 1px solid rgba(255,255,255,0.06);
-                background: #080808;
+                background: #1a1a1f;
                 min-height: 120px;
                 display: flex;
                 align-items: center;
@@ -466,18 +466,18 @@
             }
             .ob-gif-fallback {
                 padding: 24px;
-                color: #444;
+                color: #555568;
                 font-size: 0.75rem;
                 text-align: center;
             }
             
             .ob-footer {
                 padding: 14px 24px 18px;
-                border-top: 1px solid rgba(255,255,255,0.07);
+                border-top: 1px solid rgba(255,255,255,0.08);
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                background: #0d0d0d;
+                background: #22222a;
             }
             .ob-dots {
                 display: flex;
@@ -487,12 +487,12 @@
                 width: 7px;
                 height: 7px;
                 border-radius: 50%;
-                background: #1e1e1e;
+                background: #33333d;
                 transition: background 0.2s;
             }
             .ob-dot.active {
-                background: #1A8E50;
-                box-shadow: 0 0 12px rgba(26,142,80,0.3);
+                background: #2ECC71;
+                box-shadow: 0 0 12px rgba(46, 204, 113, 0.3);
             }
             
             .ob-btns {
@@ -507,29 +507,29 @@
                 cursor: pointer;
                 border: 1px solid rgba(255,255,255,0.07);
                 background: transparent;
-                color: #A2A6A2;
+                color: #aaaabc;
                 font-family: "Inter", sans-serif;
                 transition: all 0.15s;
             }
             .ob-btn:hover:not(:disabled) {
                 background: rgba(255,255,255,0.04);
-                color: #ddd;
+                color: #e8e8f0;
             }
             .ob-btn:disabled {
                 opacity: 0.3;
                 cursor: default;
             }
             .ob-btn.primary {
-                background: #1A8E50;
-                border-color: #1A8E50;
-                color: #04140a;
+                background: #2ECC71;
+                border-color: #2ECC71;
+                color: #ffffff;
                 font-weight: 600;
             }
             .ob-btn.primary:hover:not(:disabled) {
-                background: #1fa860;
-                border-color: #1fa860;
+                background: #27AE60;
+                border-color: #27AE60;
                 transform: translateY(-1px);
-                box-shadow: 0 4px 16px rgba(26,142,80,0.25);
+                box-shadow: 0 4px 16px rgba(46, 204, 113, 0.3);
             }
             
             .checkbox {
@@ -551,7 +551,7 @@
                 left: 0;
                 right: 0;
                 bottom: 0;
-                background: #1c1c1c;
+                background: #33333d;
                 transition: 0.25s;
                 border-radius: 30px;
                 border: 1px solid rgba(255,255,255,0.06);
@@ -563,13 +563,13 @@
                 width: 14px;
                 left: 2px;
                 bottom: 2px;
-                background: #444;
+                background: #555568;
                 transition: 0.25s;
                 border-radius: 50%;
             }
             .checkbox input:checked + label {
-                background: #1A8E50;
-                border-color: #1A8E50;
+                background: #2ECC71;
+                border-color: #2ECC71;
             }
             .checkbox input:checked + label:before {
                 transform: translateX(18px);
@@ -581,7 +581,7 @@
             .ob-skip:focus-visible,
             .ob-select:focus-visible,
             .ob-input:focus-visible {
-                outline: 2px solid #1A8E50 !important;
+                outline: 2px solid #2ECC71 !important;
                 outline-offset: 2px;
             }
         `;
