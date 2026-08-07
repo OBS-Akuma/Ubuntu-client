@@ -1,22 +1,29 @@
-const { BrowserWindow, app, ipcMain } = require('electron');
+const { BrowserWindow, app, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { registerShortcuts } = require("./assets/shortcuts.js");
 const DiscordRPC = require('./discord.js');
 const { betterStatsAddon } = require('./addons/betterstats.js');
+const { overlayColorAddon } = require('./addons/overlaycolor.js');
+const { socialCardsAddon } = require('./addons/socialcards.js');
+const { inspectPriceAddon } = require('./addons/inspectprice.js');
+const { twitchNewsAddon } = require('./addons/twitchnews.js');
+const { friendListAddon } = require('./addons/friendlist.js');
+
 let discordRPC = null;
 let gameWindow = null;
 
+ipcMain.on("open-external", (_, url) => {
+  shell.openExternal(url);
+});
 
 function createGameWindow(settings = {}) {
-
   if (gameWindow && !gameWindow.isDestroyed()) {
     console.log(' Game window already exists, showing it');
     gameWindow.show();
     gameWindow.focus();
     return gameWindow;
   }
-
 
   let menuHTML = '';
   let menuCSS = '';
@@ -43,6 +50,11 @@ function createGameWindow(settings = {}) {
   });
 
   gameWindow.removeMenu();
+
+  gameWindow.webContents.on('new-window', (event, url) => {
+    event.preventDefault();
+    shell.openExternal(url);
+  });
 
   const documentsPath = app.getPath('documents');
   const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
@@ -1266,13 +1278,18 @@ function createGameWindow(settings = {}) {
     })();
   `;
 
- const combinedScript = injectionScript + '\n' + 
+const combinedScript = injectionScript + '\n' + 
                       gunTrackerScript + '\n' + 
                       menuScript + '\n' + 
                       usernameHidingScript + '\n' + 
                       endGameMessageScript + '\n' + 
                       badgeScript + '\n' + 
-                      '(' + betterStatsAddon.toString() + ')();';
+                      '(' + betterStatsAddon.toString() + ')();' + '\n' +
+                      '(' + overlayColorAddon.toString() + ')();' + '\n' +
+                      '(' + socialCardsAddon.toString() + ')();' + '\n' +
+                      '(' + inspectPriceAddon.toString() + ')();' + '\n' +
+                      '(' + twitchNewsAddon.toString() + ')();' + '\n' +
+                      '(' + friendListAddon.toString() + ')();';
 
 
   const settingsPath = path.join(ubuntuFolder, 'settings.txt');
@@ -1415,6 +1432,7 @@ gameWindow.webContents.on('did-finish-load', () => {
         .catch(err => console.error(' Script execution failed:', err));
 });
 
+
   gameWindow.webContents.setUserAgent(
     `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.7103.116 Safari/537.36 Electron/${app.getVersion()} UbuntuClient/${app.getVersion()}`
   );
@@ -1426,6 +1444,7 @@ gameWindow.webContents.on('did-finish-load', () => {
     gameWindow.show();
     console.log(' Game window shown');
   });
+
 
   registerShortcuts(gameWindow);
 

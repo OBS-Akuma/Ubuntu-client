@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { BrowserWindow, app, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const fetch = require('node-fetch');
@@ -8,6 +8,9 @@ const { applySwitches, applyWindowSettings, getDefaultSettings } = require('./Sw
 let splashWindow = null;
 let gameWindow = null;
 
+ipcMain.on("open-external", (_, url) => {
+  shell.openExternal(url);
+});
 
 let ktiersCache = null;
 let ktiersCacheTime = null;
