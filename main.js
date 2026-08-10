@@ -1,6 +1,6 @@
 const { BrowserWindow, app, ipcMain, shell } = require('electron');
-const path = require('path');
-const fs = require('fs');
+const fs = require("fs");
+const path = require("path");
 const fetch = require('node-fetch');
 const { createGameWindow } = require('./game.js');
 const { applySwitches, applyWindowSettings, getDefaultSettings } = require('./Switches.js');

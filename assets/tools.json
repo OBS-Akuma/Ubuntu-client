@@ -1,0 +1,33 @@
+[
+  {
+    "name": "Kirka Community Hub",
+    "description": "Custom CSS, crosshairs, textures",
+    "url": "https://kirkacommunityhub.pages.dev/",
+    "iconUrl": "https://kirkacommunityhub.pages.dev/assets/icon.png"
+  },
+  {
+    "name": "CSS Daymian",
+    "description": "Custom CSS tools",
+    "url": "https://css.daymian.xyz/",
+    "iconUrl": "https://css.daymian.xyz/imgs/icon.png"
+  },
+  {
+    "name": "Froke Tools",
+    "description": "Tools by Froke",
+    "url": "https://smudgy.store",
+    "iconUrl": "https://www.smudgy.store/uploads/icon.png"
+  },
+  {
+    "name": "Kirka Competitive League",
+    "description": "Join to play in competitive tournaments",
+    "url": "https://ktiers.com/",
+    "iconUrl": "https://ktiers.com/imgs/placements/TierOne.png"
+  },
+  {
+    "name": "KirkaTrades",
+    "owner": "Kirka.io",
+    "icon": "https://kirka.lukeskywalk.com/kirkatradeslogo_36x36.png",
+    "description": "KirkaTrades tools portal with global chat, price list, item list skin viewer and much more.",
+    "src": "https://kirka.lukeskywalk.com/"
+  }
+]

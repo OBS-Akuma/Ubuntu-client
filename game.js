@@ -9,6 +9,13 @@ const { socialCardsAddon } = require('./addons/socialcards.js');
 const { inspectPriceAddon } = require('./addons/inspectprice.js');
 const { twitchNewsAddon } = require('./addons/twitchnews.js');
 const { friendListAddon } = require('./addons/friendlist.js');
+const { friendSearchAddon } = require('./addons/friendsearch.js');
+const { roleDisplayAddon } = require('./addons/roledisplay.js');
+const { notificationsAddon } = require('./addons/notifications.js');
+const { friendStylerAddon } = require('./addons/friendstyler.js');
+const { copyUtilsAddon } = require('./addons/copyutils.js');
+const { devMenuAddon } = require('./addons/menu.js');
+
 
 let discordRPC = null;
 let gameWindow = null;
@@ -1280,7 +1287,6 @@ function createGameWindow(settings = {}) {
 
 const combinedScript = injectionScript + '\n' + 
                       gunTrackerScript + '\n' + 
-                      menuScript + '\n' + 
                       usernameHidingScript + '\n' + 
                       endGameMessageScript + '\n' + 
                       badgeScript + '\n' + 
@@ -1289,7 +1295,13 @@ const combinedScript = injectionScript + '\n' +
                       '(' + socialCardsAddon.toString() + ')();' + '\n' +
                       '(' + inspectPriceAddon.toString() + ')();' + '\n' +
                       '(' + twitchNewsAddon.toString() + ')();' + '\n' +
-                      '(' + friendListAddon.toString() + ')();';
+                      '(' + friendListAddon.toString() + ')();' + '\n' +
+                      '(' + friendSearchAddon.toString() + ')();' + '\n' +
+                      '(' + roleDisplayAddon.toString() + ')();' + '\n' +
+                      '(' + notificationsAddon.toString() + ')();' + '\n' +
+                      '(' + friendStylerAddon.toString() + ')();' + '\n' +
+                      '(' + devMenuAddon.toString() + ')();' + '\n' +
+                      '(' + copyUtilsAddon.toString() + ')();';
 
 
   const settingsPath = path.join(ubuntuFolder, 'settings.txt');
