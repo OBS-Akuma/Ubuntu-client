@@ -1,0 +1,10 @@
+[
+  { "000000": "Owner", "tt": "The owner + dev of the game" },
+  { "65e69f": "Admin", "tt": "The Verified Administrator of the game" },
+  { "66d73c": "Bug Finder", "tt": "The verified Bug Huter of the game" },
+  { "dd502c": "Payment Manager", "tt": "Gives you the rewards for Things like tournaments" },
+  { "dd502c": "Asset Manager", "tt": "Manages the Assets that come into the game" },
+  { "c41e3a": "3rd Party Developer", "tt": "Made a game of the game or something like it" },
+  { "13a2fb": "Mod", "tt": "The Verified Moderator of the game" },
+  { "4d9aff": "Verified", "tt": "user was Verified for Consistently contribute to the game in a positive manner" }
+]
