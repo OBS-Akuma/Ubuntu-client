@@ -7,8 +7,15 @@
  * Includes community scripts with install/uninstall functionality.
  * Features a Game tab with various UI customization options (saved to localStorage).
  * Includes a Client tab with export/import functionality.
- * 
+ *
  * Run this in the devtools console.
+ *
+ * CSS ARCHITECTURE NOTE:
+ * All menu chrome (not the injected user CSS/JS) is styled by ONE stylesheet
+ * (see STYLE_SHEET below) using classes + real :hover rules, instead of
+ * per-element inline cssText + mouseenter/mouseleave listener pairs. To
+ * retheme the menu, edit STYLE_SHEET — you don't need to touch element
+ * creation code at all.
  */
 const devMenuAddon = () => {
   // ---- State ----
@@ -30,11 +37,7 @@ const devMenuAddon = () => {
   let dragOffsetY = 0;
   let menuX = 50;
   let menuY = 50;
-  let startX = 0;
-  let startY = 0;
-  let startMenuX = 0;
-  let startMenuY = 0;
-  
+
   // ---- File Management State ----
   let uploadedCssFiles = [];
   let uploadedJsFiles = [];
@@ -43,7 +46,7 @@ const devMenuAddon = () => {
   let cssFileListContainer = null;
   let jsFileListContainer = null;
   let activeTab = 'injector';
-  
+
   // ---- Community Scripts State ----
   let communityScripts = [];
   let installedCommunityScripts = [];
@@ -62,9 +65,442 @@ const devMenuAddon = () => {
     interface_opacity: 100,
     interface_bounds: '2' // 0=80%, 1=90%, 2=100%
   };
-  let gameSettingsApplied = false;
   let gameStylesElement = null;
   let gameSettingElements = {};
+
+  const STYLE_ID = 'dev-menu-chrome-styles';
+
+  // =========================================================================
+  // ONE stylesheet for all menu chrome. Colors/spacing live in CSS custom
+  // properties at the top so retheming is a find-and-replace, not a hunt
+  // through element creation code. Falls back gracefully if the host page
+  // doesn't define --bg0 etc.
+  // =========================================================================
+  const STYLE_SHEET = `
+  .dm-root {
+    --dm-bg0: var(--bg0, #1a1a1f);
+    --dm-bg1: var(--bg1, #22222a);
+    --dm-bg2: var(--bg2, #2a2a33);
+    --dm-bg3: var(--bg3, #33333d);
+    --dm-border: var(--border, rgba(255,255,255,0.08));
+    --dm-text: var(--text, #e8e8f0);
+    --dm-text-muted: var(--text-muted, #8888a0);
+    --dm-green: var(--green, #2ECC71);
+    --dm-green-dim: var(--green-dim, rgba(46, 204, 113, 0.15));
+    --dm-green-border: var(--green-border, rgba(46, 204, 113, 0.35));
+    --dm-blue: var(--blue, #3498db);
+    --dm-blue-dim: var(--blue-dim, rgba(52, 152, 219, 0.15));
+    --dm-blue-border: var(--blue-border, rgba(52, 152, 219, 0.35));
+    --dm-purple: var(--purple, #9b59b6);
+    --dm-danger-bg: rgba(220,40,40,0.2);
+    --dm-danger-border: rgba(220,40,40,0.4);
+    --dm-danger-text: #ff6666;
+    font-family: "Inter", sans-serif;
+  }
+
+  .dm-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: transparent;
+    z-index: 99999;
+    display: none;
+    justify-content: flex-start;
+    align-items: flex-start;
+    pointer-events: none;
+  }
+  .dm-overlay.dm-visible { display: flex; }
+
+  .dm-window {
+    position: fixed;
+    background: var(--dm-bg0);
+    width: 700px;
+    height: 475px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+    border: 1px solid var(--dm-border);
+    color: var(--dm-text);
+    transform: scale(0.95);
+    opacity: 0;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    will-change: transform, opacity, left, top;
+  }
+  .dm-window.dm-open { transform: scale(1); opacity: 1; }
+  .dm-window.dm-dragging { transition: none; transform: none; opacity: 1; }
+
+  .dm-topbar {
+    height: 52px;
+    background: var(--dm-bg1);
+    border-bottom: 1px solid var(--dm-border);
+    display: flex;
+    align-items: center;
+    padding: 0 18px;
+    gap: 14px;
+    flex-shrink: 0;
+    cursor: grab;
+    user-select: none;
+    -webkit-app-region: drag;
+    touch-action: none;
+  }
+  .dm-topbar.dm-dragging { cursor: grabbing; }
+
+  .dm-logo-area {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+    -webkit-app-region: no-drag;
+  }
+  .dm-icon {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--dm-bg3);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .dm-icon img { width: 100%; height: 100%; object-fit: cover; }
+  .dm-brand-name {
+    font-family: 'roboto', cursive, system-ui, sans-serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.03em;
+    text-transform: lowercase;
+  }
+  .dm-spacer { flex: 1; -webkit-app-region: drag; }
+
+  .dm-icon-btn {
+    width: 28px; height: 28px;
+    border-radius: 5px;
+    border: 1px solid var(--dm-border);
+    background: transparent;
+    color: var(--dm-text-muted);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.75rem;
+    pointer-events: auto;
+    outline: none !important;
+    -webkit-appearance: none !important;
+    -webkit-app-region: no-drag;
+  }
+  .dm-icon-btn:hover {
+    background: var(--dm-danger-bg);
+    border-color: var(--dm-danger-border);
+    color: var(--dm-danger-text);
+  }
+
+  .dm-main {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    height: calc(100% - 52px);
+  }
+
+  .dm-sidebar {
+    width: 64px;
+    background: var(--dm-bg1);
+    border-right: 1px solid var(--dm-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 0;
+    gap: 4px;
+    flex-shrink: 0;
+    height: 100%;
+  }
+  .dm-sidebar-spacer { flex: 1; }
+
+  .dm-tab-btn {
+    width: 44px; height: 44px;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    color: #555568;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    font-size: 1.1rem;
+    outline: none !important;
+    -webkit-appearance: none !important;
+  }
+  .dm-tab-btn.dm-active {
+    background: var(--dm-green-dim);
+    border: 1px solid var(--dm-green-border);
+    color: var(--dm-green);
+  }
+
+  .dm-tooltip {
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--dm-bg2);
+    border: 1px solid var(--dm-border);
+    color: #ccc;
+    font-size: 0.7rem;
+    font-weight: 500;
+    white-space: nowrap;
+    padding: 4px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 999;
+  }
+  .dm-tab-btn:hover .dm-tooltip { opacity: 1; }
+
+  .dm-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    background: var(--dm-bg0);
+    height: 100%;
+  }
+
+  .dm-tab-content { display: none; height: 100%; }
+  .dm-tab-content.dm-active { display: block; }
+  .dm-tab-content.dm-centered.dm-active { display: flex; align-items: center; justify-content: center; }
+  #tab-game.dm-active { overflow-y: auto; }
+
+  .dm-section-title {
+    font-family: "Permanent Marker", cursive;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #8a8aa0;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin: 0 0 12px 0;
+  }
+
+  .dm-label {
+    display: block;
+    margin-top: 8px;
+    margin-bottom: 4px;
+    font-weight: 600;
+    color: var(--dm-text-muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+  }
+  .dm-label.dm-label-tight { margin-top: 10px; }
+
+  .dm-input, .dm-textarea, .dm-select, .dm-file-input {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--dm-bg2);
+    border: 1px solid var(--dm-border);
+    border-radius: 0px;
+    color: var(--dm-text);
+    font-size: 0.78rem;
+    font-family: "Inter", sans-serif;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+    outline: none !important;
+    -webkit-appearance: none !important;
+  }
+  .dm-input:focus, .dm-textarea:focus { border-color: var(--dm-green-border); }
+  .dm-input.dm-focus-blue:focus, .dm-textarea.dm-focus-blue:focus { border-color: var(--dm-blue-border); }
+
+  .dm-textarea {
+    min-height: 60px;
+    max-height: 100px;
+    font-size: 0.72rem;
+    font-family: 'Consolas', monospace;
+    resize: vertical;
+    line-height: 1.5;
+  }
+
+  .dm-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .dm-file-input {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 0.72rem;
+    cursor: pointer;
+  }
+  .dm-file-input:disabled { opacity: 0.5; }
+
+  .dm-count {
+    font-size: 0.65rem;
+    color: var(--dm-text-muted);
+    margin-top: 2px;
+    text-align: right;
+  }
+
+  .dm-file-list {
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-height: 60px;
+    overflow-y: auto;
+  }
+  .dm-file-list.dm-file-list-tall { max-height: 80px; }
+
+  .dm-file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px;
+    background: var(--dm-bg2);
+    border: 1px solid var(--dm-border);
+    font-size: 0.7rem;
+    color: var(--dm-text);
+  }
+  .dm-file-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+  }
+  .dm-file-icon-css { color: var(--dm-green); font-size: 0.8rem; }
+  .dm-file-icon-js { color: var(--dm-blue); font-size: 0.8rem; }
+  .dm-file-icon-community { color: var(--dm-purple); font-size: 0.8rem; }
+  .dm-file-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.7rem;
+  }
+  .dm-file-size { color: var(--dm-text-muted); font-size: 0.6rem; }
+
+  .dm-delete-btn {
+    background: transparent;
+    border: 1px solid var(--dm-border);
+    color: var(--dm-text-muted);
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 0.6rem;
+    transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center;
+    outline: none !important;
+    -webkit-appearance: none !important;
+  }
+  .dm-delete-btn:hover {
+    background: var(--dm-danger-bg);
+    border-color: var(--dm-danger-border);
+    color: var(--dm-danger-text);
+  }
+
+  .dm-empty-msg {
+    padding: 4px;
+    text-align: center;
+    color: var(--dm-text-muted);
+    font-size: 0.7rem;
+  }
+  .dm-empty-msg.dm-empty-large {
+    padding: 20px;
+    font-size: 0.85rem;
+  }
+  .dm-empty-msg.dm-empty-large i {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 8px;
+    opacity: 0.3;
+  }
+
+  .dm-btn {
+    padding: 6px 12px;
+    border-radius: 0px;
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-family: "Inter", sans-serif;
+    transition: all 0.15s;
+    outline: none !important;
+    -webkit-appearance: none !important;
+    white-space: nowrap;
+  }
+  .dm-btn-block { width: 100%; padding: 8px 12px; font-size: 0.78rem; }
+  .dm-btn-wide { width: 100%; padding: 4px 12px; font-size: 0.65rem; margin-top: 4px; }
+
+  .dm-btn-neutral {
+    background: transparent;
+    border: 1px solid var(--dm-border);
+    color: var(--dm-text-muted);
+  }
+  .dm-btn-neutral:hover {
+    background: var(--dm-danger-bg);
+    border-color: var(--dm-danger-border);
+    color: var(--dm-danger-text);
+  }
+  .dm-btn-neutral.dm-hover-green:hover {
+    background: var(--dm-green-dim);
+    border-color: var(--dm-green-border);
+    color: var(--dm-green);
+  }
+
+  .dm-btn-green {
+    background: var(--dm-green-dim);
+    border: 1px solid var(--dm-green-border);
+    color: var(--dm-green);
+  }
+  .dm-btn-green:hover { background: rgba(46, 204, 113, 0.25); }
+
+  .dm-btn-blue {
+    background: var(--dm-blue-dim);
+    border: 1px solid var(--dm-blue-border);
+    color: var(--dm-blue);
+  }
+  .dm-btn-blue:hover { background: rgba(52, 152, 219, 0.25); }
+
+  .dm-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+  }
+  .dm-checkbox { width: 16px; height: 16px; accent-color: var(--dm-green); cursor: pointer; }
+  .dm-toggle-label { color: var(--dm-text); font-size: 0.78rem; cursor: pointer; user-select: none; }
+
+  .dm-slider-wrapper { margin-top: 8px; padding: 4px 0; }
+  .dm-slider-label { display: block; color: var(--dm-text-muted); font-size: 0.72rem; margin-bottom: 2px; }
+  .dm-slider-row { display: flex; align-items: center; gap: 10px; }
+  .dm-slider { flex: 1; accent-color: var(--dm-green); cursor: pointer; }
+  .dm-slider-value { color: var(--dm-text); font-size: 0.78rem; min-width: 30px; text-align: center; }
+  .dm-slider-value.dm-slider-value-wide { min-width: 40px; }
+
+  .dm-keybind-info {
+    padding: 10px 12px;
+    background: var(--dm-bg2);
+    border: 1px solid var(--dm-border);
+    font-size: 0.72rem;
+    color: var(--dm-text-muted);
+    line-height: 1.5;
+  }
+  .dm-keybind-info strong { color: var(--dm-text); }
+  .dm-keybind-info kbd {
+    background: var(--dm-bg3);
+    padding: 1px 8px;
+    border-radius: 3px;
+    color: #ccc;
+    font-family: inherit;
+  }
+  `;
+
+  function injectChromeStylesheet() {
+    if (document.getElementById(STYLE_ID)) return;
+    const styleEl = document.createElement('style');
+    styleEl.id = STYLE_ID;
+    styleEl.textContent = STYLE_SHEET;
+    document.head.appendChild(styleEl);
+  }
+
+  // ---- helper: create an element with class(es) and optional props ----
+  function el(tag, className, props) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (props) Object.assign(node, props);
+    return node;
+  }
 
   // ---- Load Settings from localStorage ----
   function loadSettings() {
@@ -72,7 +508,6 @@ const devMenuAddon = () => {
       const saved = localStorage.getItem('clientsettings');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Merge with defaults
         gameSettings = { ...gameSettings, ...parsed };
         console.log('[UbuntuClient] Loaded settings from localStorage');
       }
@@ -93,181 +528,44 @@ const devMenuAddon = () => {
 
   // ---- Create Menu Elements ----
   function createMenu() {
-    // Load settings first
     loadSettings();
+    injectChromeStylesheet();
 
-    // Create overlay - transparent background
-    overlayElement = document.createElement('div');
-    overlayElement.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: transparent;
-      z-index: 99999;
-      display: none;
-      justify-content: flex-start;
-      align-items: flex-start;
-      font-family: "Inter", sans-serif;
-      pointer-events: none;
-    `;
-
-    // Create menu container - fixed size 700x475
-    menuElement = document.createElement('div');
-    menuElement.style.cssText = `
-      position: fixed;
-      top: ${menuY}px;
-      left: ${menuX}px;
-      background: var(--bg0, #1a1a1f);
-      border-radius: 0px;
-      width: 700px;
-      height: 475px;
-      overflow: hidden;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.8);
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      color: var(--text, #e8e8f0);
-      transform: scale(0.95);
-      transition: transform 0.2s ease, opacity 0.2s ease;
-      pointer-events: auto;
-      display: flex;
-      flex-direction: column;
-      opacity: 0;
-      will-change: transform, opacity, left, top;
-    `;
+    overlayElement = el('div', 'dm-root dm-overlay');
+    menuElement = el('div', 'dm-window');
+    menuElement.style.top = menuY + 'px';
+    menuElement.style.left = menuX + 'px';
 
     // ---- Draggable Top Bar ----
-    const topBar = document.createElement('div');
-    topBar.style.cssText = `
-      height: 52px;
-      background: var(--bg1, #22222a);
-      border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
-      display: flex;
-      align-items: center;
-      padding: 0 18px;
-      gap: 14px;
-      flex-shrink: 0;
-      cursor: grab;
-      user-select: none;
-      -webkit-app-region: drag;
-      touch-action: none;
-    `;
+    const topBar = el('div', 'dm-topbar');
     topBar.addEventListener('mousedown', startDrag);
     topBar.addEventListener('touchstart', startDragTouch, { passive: false });
 
-    // Logo area
-    const logoArea = document.createElement('div');
-    logoArea.style.cssText = `
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      pointer-events: none;
-      -webkit-app-region: no-drag;
-    `;
-const icon = document.createElement('div');
-icon.style.cssText = `
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--bg3, #33333d);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-`;
+    const logoArea = el('div', 'dm-logo-area');
+    const icon = el('div', 'dm-icon');
+    const iconImg = el('img', null, {
+      src: 'https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/main/assets/icon.png'
+    });
+    icon.appendChild(iconImg);
+    logoArea.appendChild(icon);
 
-// Use Ubuntu logo image
-const iconImg = document.createElement('img');
-iconImg.src = 'https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/main/assets/icon.png'; // or local path
-iconImg.style.cssText = `
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-`;
-icon.appendChild(iconImg);
-logoArea.appendChild(icon);
-
-    const name = document.createElement('span');
-    name.textContent = 'UbuntuClient';
-    name.style.cssText = `
-      font-family: 'roboto', cursive, system-ui, sans-serif;
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: 0.03em;
-      text-transform: lowercase;
-    `;
+    const name = el('span', 'dm-brand-name', { textContent: 'UbuntuClient' });
     logoArea.appendChild(name);
     topBar.appendChild(logoArea);
 
-    // Spacer
-    const spacer = document.createElement('div');
-    spacer.style.cssText = 'flex: 1; -webkit-app-region: drag;';
-    topBar.appendChild(spacer);
+    topBar.appendChild(el('div', 'dm-spacer'));
 
-    // Close button
-    const closeBtn = document.createElement('button');
-    closeBtn.innerHTML = '<i class="fas fa-times"></i>';
-    closeBtn.style.cssText = `
-      width: 28px;
-      height: 28px;
-      border-radius: 5px;
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      background: transparent;
-      color: var(--text-muted, #8888a0);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.15s;
-      font-size: 0.75rem;
-      pointer-events: auto;
-      font-family: "Inter", sans-serif;
-      outline: none !important;
-      -webkit-appearance: none !important;
-      -webkit-app-region: no-drag;
-    `;
-    closeBtn.addEventListener('mouseenter', () => {
-      closeBtn.style.background = 'rgba(220,40,40,0.2)';
-      closeBtn.style.borderColor = 'rgba(220,40,40,0.4)';
-      closeBtn.style.color = '#ff6666';
-    });
-    closeBtn.addEventListener('mouseleave', () => {
-      closeBtn.style.background = 'transparent';
-      closeBtn.style.borderColor = 'var(--border, rgba(255,255,255,0.08))';
-      closeBtn.style.color = 'var(--text-muted, #8888a0)';
-    });
+    const closeBtn = el('button', 'dm-icon-btn', { innerHTML: '<i class="fas fa-times"></i>' });
     closeBtn.addEventListener('click', toggleMenu);
     topBar.appendChild(closeBtn);
 
     menuElement.appendChild(topBar);
 
     // ---- Main Layout (Sidebar + Content) ----
-    const mainLayout = document.createElement('div');
-    mainLayout.style.cssText = `
-      display: flex;
-      flex: 1;
-      min-height: 0;
-      height: calc(100% - 52px);
-    `;
+    const mainLayout = el('div', 'dm-main');
 
     // ---- Sidebar ----
-    const sidebar = document.createElement('div');
-    sidebar.style.cssText = `
-      width: 64px;
-      background: var(--bg1, #22222a);
-      border-right: 1px solid var(--border, rgba(255,255,255,0.08));
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 12px 0;
-      gap: 4px;
-      flex-shrink: 0;
-      height: 100%;
-    `;
-
-    // Sidebar tabs
+    const sidebar = el('div', 'dm-sidebar');
     const tabs = [
       { id: 'injector', icon: 'fa-file-code', label: 'CSS' },
       { id: 'scripts', icon: 'fa-code', label: 'Scripts' },
@@ -278,293 +576,58 @@ logoArea.appendChild(icon);
     ];
 
     tabs.forEach(tab => {
-      const btn = document.createElement('button');
-      btn.className = `sidebar-tab ${tab.id === activeTab ? 'active' : ''}`;
+      const btn = el('button', `dm-tab-btn${tab.id === activeTab ? ' dm-active' : ''} sidebar-tab`);
       btn.dataset.tab = tab.id;
-      btn.style.cssText = `
-        width: 44px;
-        height: 44px;
-        border-radius: 8px;
-        background: ${tab.id === activeTab ? 'var(--green-dim, rgba(46, 204, 113, 0.15))' : 'transparent'};
-        border: ${tab.id === activeTab ? '1px solid var(--green-border, rgba(46, 204, 113, 0.35))' : 'none'};
-        color: ${tab.id === activeTab ? 'var(--green, #2ECC71)' : '#555568'};
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.15s;
-        position: relative;
-        font-size: 1.1rem;
-        font-family: "Inter", sans-serif;
-        outline: none !important;
-        -webkit-appearance: none !important;
-      `;
-      
       btn.innerHTML = `<i class="fas ${tab.icon}"></i>`;
-      
-      // Tooltip
-      const tooltip = document.createElement('span');
-      tooltip.textContent = tab.label;
-      tooltip.style.cssText = `
-        position: absolute;
-        left: calc(100% + 10px);
-        top: 50%;
-        transform: translateY(-50%);
-        background: var(--bg2, #2a2a33);
-        border: 1px solid var(--border, rgba(255,255,255,0.08));
-        color: #ccc;
-        font-size: 0.7rem;
-        font-weight: 500;
-        white-space: nowrap;
-        padding: 4px 8px;
-        border-radius: 4px;
-        pointer-events: none;
-        opacity: 0;
-        transition: opacity 0.15s;
-        z-index: 999;
-      `;
+      const tooltip = el('span', 'dm-tooltip', { textContent: tab.label });
       btn.appendChild(tooltip);
-      
-      btn.addEventListener('mouseenter', () => {
-        tooltip.style.opacity = '1';
-      });
-      btn.addEventListener('mouseleave', () => {
-        tooltip.style.opacity = '0';
-      });
-      
       btn.addEventListener('click', () => switchTab(tab.id));
-      
       sidebar.appendChild(btn);
     });
-
-    // Spacer
-    const spacer2 = document.createElement('div');
-    spacer2.style.cssText = 'flex: 1;';
-    sidebar.appendChild(spacer2);
-
+    sidebar.appendChild(el('div', 'dm-sidebar-spacer'));
     mainLayout.appendChild(sidebar);
 
     // ---- Content Area ----
-    const contentArea = document.createElement('div');
-    contentArea.style.cssText = `
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px 20px;
-      background: var(--bg0, #1a1a1f);
-      height: 100%;
-    `;
-    contentArea.style.overflowY = 'auto';
+    const contentArea = el('div', 'dm-content');
 
     // ---- Tab Content: CSS (Injector) ----
-    const injectorTab = document.createElement('div');
-    injectorTab.className = 'tab-content';
+    const injectorTab = el('div', `dm-tab-content tab-content${activeTab === 'injector' ? ' dm-active' : ''}`);
     injectorTab.id = 'tab-injector';
-    injectorTab.style.cssText = `
-      display: ${activeTab === 'injector' ? 'block' : 'none'};
-      height: 100%;
-    `;
+    injectorTab.appendChild(el('h2', 'dm-section-title', { textContent: 'CSS Injector' }));
 
-    // Title
-    const title = document.createElement('h2');
-    title.textContent = 'CSS Injector';
-    title.style.cssText = `
-      font-family: "Permanent Marker", cursive;
-      font-size: 1rem;
-      font-weight: 700;
-      color: #8a8aa0;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin: 0 0 12px 0;
-    `;
-    injectorTab.appendChild(title);
-
-    // CSS Link Input Section
-    const linkLabel = document.createElement('label');
-    linkLabel.textContent = 'CSS URL (Raw GitHub supported)';
-    linkLabel.style.cssText = `
-      display: block;
-      margin-top: 8px;
-      margin-bottom: 4px;
-      font-weight: 600;
-      color: var(--text-muted, #8888a0);
-      font-size: 0.72rem;
-      letter-spacing: 0.03em;
-    `;
-    injectorTab.appendChild(linkLabel);
-
-    cssLinkInput = document.createElement('input');
-    cssLinkInput.type = 'text';
-    cssLinkInput.placeholder = 'https://raw.githubusercontent.com/.../style.css';
-    cssLinkInput.style.cssText = `
-      width: 100%;
-      padding: 8px 12px;
-      background: var(--bg2, #2a2a33);
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      color: var(--text, #e8e8f0);
-      font-size: 0.78rem;
-      font-family: "Inter", sans-serif;
-      box-sizing: border-box;
-      transition: border-color 0.2s;
-      outline: none !important;
-      -webkit-appearance: none !important;
-    `;
-    cssLinkInput.addEventListener('focus', () => {
-      cssLinkInput.style.borderColor = 'var(--green-border, rgba(46, 204, 113, 0.35))';
-      cssLinkInput.style.outline = 'none';
-    });
-    cssLinkInput.addEventListener('blur', () => {
-      cssLinkInput.style.borderColor = 'var(--border, rgba(255,255,255,0.08))';
-      cssLinkInput.style.outline = 'none';
+    injectorTab.appendChild(el('label', 'dm-label', { textContent: 'CSS URL (Raw GitHub supported)' }));
+    cssLinkInput = el('input', 'dm-input', {
+      type: 'text',
+      placeholder: 'https://raw.githubusercontent.com/.../style.css'
     });
     cssLinkInput.addEventListener('input', handleAutoApply);
     cssLinkInput.addEventListener('change', handleAutoApply);
-    cssLinkInput.addEventListener('paste', () => {
-      setTimeout(handleAutoApply, 100);
-    });
+    cssLinkInput.addEventListener('paste', () => setTimeout(handleAutoApply, 100));
     injectorTab.appendChild(cssLinkInput);
 
-    // ---- CSS File Import Section ----
-    const cssFileLabel = document.createElement('label');
-    cssFileLabel.textContent = 'Upload CSS Files';
-    cssFileLabel.style.cssText = `
-      display: block;
-      margin-top: 10px;
-      margin-bottom: 4px;
-      font-weight: 600;
-      color: var(--text-muted, #8888a0);
-      font-size: 0.72rem;
-      letter-spacing: 0.03em;
-    `;
-    injectorTab.appendChild(cssFileLabel);
-
-    const cssFileWrapper = document.createElement('div');
-    cssFileWrapper.style.cssText = `
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    `;
-    
-    cssFileInput = document.createElement('input');
-    cssFileInput.type = 'file';
-    cssFileInput.accept = '.css';
-    cssFileInput.style.cssText = `
-      flex: 1;
-      padding: 6px 8px;
-      background: var(--bg2, #2a2a33);
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      color: var(--text, #e8e8f0);
-      font-size: 0.72rem;
-      font-family: "Inter", sans-serif;
-      outline: none !important;
-      -webkit-appearance: none !important;
-      cursor: pointer;
-    `;
+    injectorTab.appendChild(el('label', 'dm-label dm-label-tight', { textContent: 'Upload CSS Files' }));
+    const cssFileWrapper = el('div', 'dm-row');
+    cssFileInput = el('input', 'dm-file-input', { type: 'file', accept: '.css' });
     cssFileInput.addEventListener('change', handleCssFileImport);
     cssFileWrapper.appendChild(cssFileInput);
     injectorTab.appendChild(cssFileWrapper);
 
-    // CSS File count indicator
-    const cssFileCount = document.createElement('div');
-    cssFileCount.id = 'css-file-count';
-    cssFileCount.style.cssText = `
-      font-size: 0.65rem;
-      color: var(--text-muted, #8888a0);
-      margin-top: 2px;
-      text-align: right;
-    `;
-    cssFileCount.textContent = `0 / ${MAX_CSS_FILES} CSS files uploaded`;
+    const cssFileCount = el('div', 'dm-count', { id: 'css-file-count', textContent: `0 / ${MAX_CSS_FILES} CSS files uploaded` });
     injectorTab.appendChild(cssFileCount);
 
-    // CSS File list container
-    cssFileListContainer = document.createElement('div');
-    cssFileListContainer.id = 'css-file-list';
-    cssFileListContainer.style.cssText = `
-      margin-top: 4px;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      max-height: 60px;
-      overflow-y: auto;
-    `;
+    cssFileListContainer = el('div', 'dm-file-list', { id: 'css-file-list' });
     injectorTab.appendChild(cssFileListContainer);
 
-    // Clear CSS files button
-    const clearCssFilesBtn = document.createElement('button');
-    clearCssFilesBtn.textContent = 'Clear All CSS Files';
-    clearCssFilesBtn.style.cssText = `
-      margin-top: 4px;
-      padding: 4px 12px;
-      background: transparent;
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      color: var(--text-muted, #8888a0);
-      cursor: pointer;
-      font-size: 0.65rem;
-      font-family: "Inter", sans-serif;
-      transition: all 0.15s;
-      outline: none !important;
-      -webkit-appearance: none !important;
-      width: 100%;
-    `;
-    clearCssFilesBtn.addEventListener('mouseenter', () => {
-      clearCssFilesBtn.style.background = 'rgba(220,40,40,0.2)';
-      clearCssFilesBtn.style.borderColor = 'rgba(220,40,40,0.4)';
-      clearCssFilesBtn.style.color = '#ff6666';
-    });
-    clearCssFilesBtn.addEventListener('mouseleave', () => {
-      clearCssFilesBtn.style.background = 'transparent';
-      clearCssFilesBtn.style.borderColor = 'var(--border, rgba(255,255,255,0.08))';
-      clearCssFilesBtn.style.color = 'var(--text-muted, #8888a0)';
-    });
+    const clearCssFilesBtn = el('button', 'dm-btn dm-btn-neutral dm-btn-wide', { textContent: 'Clear All CSS Files' });
     clearCssFilesBtn.addEventListener('click', () => {
       uploadedCssFiles = [];
       updateCssFileList();
     });
     injectorTab.appendChild(clearCssFilesBtn);
 
-    // Raw CSS Input Section
-    const rawLabel = document.createElement('label');
-    rawLabel.textContent = 'Raw CSS (Paste CSS code here)';
-    rawLabel.style.cssText = `
-      display: block;
-      margin-top: 10px;
-      margin-bottom: 4px;
-      font-weight: 600;
-      color: var(--text-muted, #8888a0);
-      font-size: 0.72rem;
-      letter-spacing: 0.03em;
-    `;
-    injectorTab.appendChild(rawLabel);
-
-    rawCssInput = document.createElement('textarea');
-    rawCssInput.placeholder = '/* Paste your CSS code here */\nbody { background: red; }';
-    rawCssInput.style.cssText = `
-      width: 100%;
-      min-height: 60px;
-      max-height: 100px;
-      padding: 8px 12px;
-      background: var(--bg2, #2a2a33);
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      color: var(--text, #e8e8f0);
-      font-size: 0.72rem;
-      font-family: 'Consolas', monospace;
-      box-sizing: border-box;
-      resize: vertical;
-      transition: border-color 0.2s;
-      line-height: 1.5;
-      outline: none !important;
-      -webkit-appearance: none !important;
-    `;
-    rawCssInput.addEventListener('focus', () => {
-      rawCssInput.style.borderColor = 'var(--green-border, rgba(46, 204, 113, 0.35))';
-      rawCssInput.style.outline = 'none';
-    });
-    rawCssInput.addEventListener('blur', () => {
-      rawCssInput.style.borderColor = 'var(--border, rgba(255,255,255,0.08))';
-      rawCssInput.style.outline = 'none';
+    injectorTab.appendChild(el('label', 'dm-label dm-label-tight', { textContent: 'Raw CSS (Paste CSS code here)' }));
+    rawCssInput = el('textarea', 'dm-textarea', {
+      placeholder: '/* Paste your CSS code here */\nbody { background: red; }'
     });
     rawCssInput.addEventListener('input', handleAutoApply);
     rawCssInput.addEventListener('change', handleAutoApply);
@@ -573,359 +636,73 @@ logoArea.appendChild(icon);
     contentArea.appendChild(injectorTab);
 
     // ---- Tab Content: Scripts ----
-    const scriptsTab = document.createElement('div');
-    scriptsTab.className = 'tab-content';
+    const scriptsTab = el('div', `dm-tab-content tab-content${activeTab === 'scripts' ? ' dm-active' : ''}`);
     scriptsTab.id = 'tab-scripts';
-    scriptsTab.style.cssText = `
-      display: ${activeTab === 'scripts' ? 'block' : 'none'};
-      height: 100%;
-    `;
+    scriptsTab.appendChild(el('h2', 'dm-section-title', { textContent: 'JS Injector' }));
 
-    // Title
-    const scriptsTitle = document.createElement('h2');
-    scriptsTitle.textContent = 'JS Injector';
-    scriptsTitle.style.cssText = `
-      font-family: "Permanent Marker", cursive;
-      font-size: 1rem;
-      font-weight: 700;
-      color: #8a8aa0;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin: 0 0 12px 0;
-    `;
-    scriptsTab.appendChild(scriptsTitle);
-
-    // JS URL Input Section
-    const jsUrlLabel = document.createElement('label');
-    jsUrlLabel.textContent = 'JavaScript URL (Raw GitHub supported)';
-    jsUrlLabel.style.cssText = `
-      display: block;
-      margin-top: 8px;
-      margin-bottom: 4px;
-      font-weight: 600;
-      color: var(--text-muted, #8888a0);
-      font-size: 0.72rem;
-      letter-spacing: 0.03em;
-    `;
-    scriptsTab.appendChild(jsUrlLabel);
-
-    jsUrlInput = document.createElement('input');
-    jsUrlInput.type = 'text';
-    jsUrlInput.placeholder = 'https://raw.githubusercontent.com/.../script.js';
-    jsUrlInput.style.cssText = `
-      width: 100%;
-      padding: 8px 12px;
-      background: var(--bg2, #2a2a33);
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      color: var(--text, #e8e8f0);
-      font-size: 0.78rem;
-      font-family: "Inter", sans-serif;
-      box-sizing: border-box;
-      transition: border-color 0.2s;
-      outline: none !important;
-      -webkit-appearance: none !important;
-    `;
-    jsUrlInput.addEventListener('focus', () => {
-      jsUrlInput.style.borderColor = 'var(--blue-border, rgba(52, 152, 219, 0.35))';
-      jsUrlInput.style.outline = 'none';
-    });
-    jsUrlInput.addEventListener('blur', () => {
-      jsUrlInput.style.borderColor = 'var(--border, rgba(255,255,255,0.08))';
-      jsUrlInput.style.outline = 'none';
+    scriptsTab.appendChild(el('label', 'dm-label', { textContent: 'JavaScript URL (Raw GitHub supported)' }));
+    jsUrlInput = el('input', 'dm-input dm-focus-blue', {
+      type: 'text',
+      placeholder: 'https://raw.githubusercontent.com/.../script.js'
     });
     jsUrlInput.addEventListener('input', handleJsAutoApply);
     jsUrlInput.addEventListener('change', handleJsAutoApply);
-    jsUrlInput.addEventListener('paste', () => {
-      setTimeout(handleJsAutoApply, 100);
-    });
+    jsUrlInput.addEventListener('paste', () => setTimeout(handleJsAutoApply, 100));
     scriptsTab.appendChild(jsUrlInput);
 
-    // ---- JS File Upload Section ----
-    const jsFileLabel = document.createElement('label');
-    jsFileLabel.textContent = 'Upload JavaScript Files';
-    jsFileLabel.style.cssText = `
-      display: block;
-      margin-top: 10px;
-      margin-bottom: 4px;
-      font-weight: 600;
-      color: var(--text-muted, #8888a0);
-      font-size: 0.72rem;
-      letter-spacing: 0.03em;
-    `;
-    scriptsTab.appendChild(jsFileLabel);
-
-    const jsFileWrapper = document.createElement('div');
-    jsFileWrapper.style.cssText = `
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    `;
-    
-    jsFileInput = document.createElement('input');
-    jsFileInput.type = 'file';
-    jsFileInput.accept = '.js';
-    jsFileInput.style.cssText = `
-      flex: 1;
-      padding: 6px 8px;
-      background: var(--bg2, #2a2a33);
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      color: var(--text, #e8e8f0);
-      font-size: 0.72rem;
-      font-family: "Inter", sans-serif;
-      outline: none !important;
-      -webkit-appearance: none !important;
-      cursor: pointer;
-    `;
+    scriptsTab.appendChild(el('label', 'dm-label dm-label-tight', { textContent: 'Upload JavaScript Files' }));
+    const jsFileWrapper = el('div', 'dm-row');
+    jsFileInput = el('input', 'dm-file-input', { type: 'file', accept: '.js' });
     jsFileInput.addEventListener('change', handleJsFileImport);
     jsFileWrapper.appendChild(jsFileInput);
     scriptsTab.appendChild(jsFileWrapper);
 
-    // JS File count indicator
-    const jsFileCount = document.createElement('div');
-    jsFileCount.id = 'js-file-count';
-    jsFileCount.style.cssText = `
-      font-size: 0.65rem;
-      color: var(--text-muted, #8888a0);
-      margin-top: 2px;
-      text-align: right;
-    `;
-    jsFileCount.textContent = `0 / ${MAX_JS_FILES} JS files uploaded`;
+    const jsFileCount = el('div', 'dm-count', { id: 'js-file-count', textContent: `0 / ${MAX_JS_FILES} JS files uploaded` });
     scriptsTab.appendChild(jsFileCount);
 
-    // JS File list container
-    jsFileListContainer = document.createElement('div');
-    jsFileListContainer.id = 'js-file-list';
-    jsFileListContainer.style.cssText = `
-      margin-top: 4px;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      max-height: 60px;
-      overflow-y: auto;
-    `;
+    jsFileListContainer = el('div', 'dm-file-list', { id: 'js-file-list' });
     scriptsTab.appendChild(jsFileListContainer);
 
-    // Clear JS files button
-    const clearJsFilesBtn = document.createElement('button');
-    clearJsFilesBtn.textContent = 'Clear All JS Files';
-    clearJsFilesBtn.style.cssText = `
-      margin-top: 4px;
-      padding: 4px 12px;
-      background: transparent;
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      color: var(--text-muted, #8888a0);
-      cursor: pointer;
-      font-size: 0.65rem;
-      font-family: "Inter", sans-serif;
-      transition: all 0.15s;
-      outline: none !important;
-      -webkit-appearance: none !important;
-      width: 100%;
-    `;
-    clearJsFilesBtn.addEventListener('mouseenter', () => {
-      clearJsFilesBtn.style.background = 'rgba(220,40,40,0.2)';
-      clearJsFilesBtn.style.borderColor = 'rgba(220,40,40,0.4)';
-      clearJsFilesBtn.style.color = '#ff6666';
-    });
-    clearJsFilesBtn.addEventListener('mouseleave', () => {
-      clearJsFilesBtn.style.background = 'transparent';
-      clearJsFilesBtn.style.borderColor = 'var(--border, rgba(255,255,255,0.08))';
-      clearJsFilesBtn.style.color = 'var(--text-muted, #8888a0)';
-    });
+    const clearJsFilesBtn = el('button', 'dm-btn dm-btn-neutral dm-btn-wide', { textContent: 'Clear All JS Files' });
     clearJsFilesBtn.addEventListener('click', () => {
       uploadedJsFiles = [];
       updateJsFileList();
     });
     scriptsTab.appendChild(clearJsFilesBtn);
 
-    // Raw JS Input Section
-    const rawJsLabel = document.createElement('label');
-    rawJsLabel.textContent = 'Raw JavaScript (Paste JS code here)';
-    rawJsLabel.style.cssText = `
-      display: block;
-      margin-top: 10px;
-      margin-bottom: 4px;
-      font-weight: 600;
-      color: var(--text-muted, #8888a0);
-      font-size: 0.72rem;
-      letter-spacing: 0.03em;
-    `;
-    scriptsTab.appendChild(rawJsLabel);
-
-    rawJsInput = document.createElement('textarea');
-    rawJsInput.placeholder = '/* Paste your JavaScript code here */\nconsole.log("Hello from injected script!");';
-    rawJsInput.style.cssText = `
-      width: 100%;
-      min-height: 60px;
-      max-height: 100px;
-      padding: 8px 12px;
-      background: var(--bg2, #2a2a33);
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      color: var(--text, #e8e8f0);
-      font-size: 0.72rem;
-      font-family: 'Consolas', monospace;
-      box-sizing: border-box;
-      resize: vertical;
-      transition: border-color 0.2s;
-      line-height: 1.5;
-      outline: none !important;
-      -webkit-appearance: none !important;
-    `;
-    rawJsInput.addEventListener('focus', () => {
-      rawJsInput.style.borderColor = 'var(--blue-border, rgba(52, 152, 219, 0.35))';
-      rawJsInput.style.outline = 'none';
-    });
-    rawJsInput.addEventListener('blur', () => {
-      rawJsInput.style.borderColor = 'var(--border, rgba(255,255,255,0.08))';
-      rawJsInput.style.outline = 'none';
+    scriptsTab.appendChild(el('label', 'dm-label dm-label-tight', { textContent: 'Raw JavaScript (Paste JS code here)' }));
+    rawJsInput = el('textarea', 'dm-textarea dm-focus-blue', {
+      placeholder: '/* Paste your JavaScript code here */\nconsole.log("Hello from injected script!");'
     });
     rawJsInput.addEventListener('input', handleJsAutoApply);
     rawJsInput.addEventListener('change', handleJsAutoApply);
     scriptsTab.appendChild(rawJsInput);
 
     // ---- Community Scripts Section ----
-    const communityLabel = document.createElement('label');
-    communityLabel.textContent = 'Community Scripts';
-    communityLabel.style.cssText = `
-      display: block;
-      margin-top: 10px;
-      margin-bottom: 4px;
-      font-weight: 600;
-      color: var(--text-muted, #8888a0);
-      font-size: 0.72rem;
-      letter-spacing: 0.03em;
-    `;
-    scriptsTab.appendChild(communityLabel);
-
-    // Dropdown for community scripts
-    const communityWrapper = document.createElement('div');
-    communityWrapper.style.cssText = `
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    `;
-
-    communityScriptDropdown = document.createElement('select');
-    communityScriptDropdown.style.cssText = `
-      flex: 1;
-      padding: 6px 8px;
-      background: var(--bg2, #2a2a33);
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      color: var(--text, #e8e8f0);
-      font-size: 0.72rem;
-      font-family: "Inter", sans-serif;
-      outline: none !important;
-      -webkit-appearance: none !important;
-      cursor: pointer;
-    `;
+    scriptsTab.appendChild(el('label', 'dm-label dm-label-tight', { textContent: 'Community Scripts' }));
+    const communityWrapper = el('div', 'dm-row');
+    communityScriptDropdown = el('select', 'dm-select');
     communityWrapper.appendChild(communityScriptDropdown);
 
-    // Install button
-    const installBtn = document.createElement('button');
-    installBtn.textContent = 'Install';
-    installBtn.style.cssText = `
-      padding: 6px 12px;
-      background: var(--green-dim, rgba(46, 204, 113, 0.15));
-      border: 1px solid var(--green-border, rgba(46, 204, 113, 0.35));
-      border-radius: 0px;
-      color: var(--green, #2ECC71);
-      cursor: pointer;
-      font-size: 0.7rem;
-      font-family: "Inter", sans-serif;
-      transition: all 0.15s;
-      outline: none !important;
-      -webkit-appearance: none !important;
-      white-space: nowrap;
-    `;
-    installBtn.addEventListener('mouseenter', () => {
-      installBtn.style.background = 'rgba(46, 204, 113, 0.25)';
-    });
-    installBtn.addEventListener('mouseleave', () => {
-      installBtn.style.background = 'var(--green-dim, rgba(46, 204, 113, 0.15))';
-    });
+    const installBtn = el('button', 'dm-btn dm-btn-green', { textContent: 'Install' });
     installBtn.addEventListener('click', installCommunityScript);
     communityWrapper.appendChild(installBtn);
-
     scriptsTab.appendChild(communityWrapper);
 
-    // Community script list container
-    communityScriptListContainer = document.createElement('div');
-    communityScriptListContainer.id = 'community-script-list';
-    communityScriptListContainer.style.cssText = `
-      margin-top: 4px;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      max-height: 80px;
-      overflow-y: auto;
-    `;
+    communityScriptListContainer = el('div', 'dm-file-list dm-file-list-tall', { id: 'community-script-list' });
     scriptsTab.appendChild(communityScriptListContainer);
 
-    // Clear all community scripts button
-    const clearCommunityBtn = document.createElement('button');
-    clearCommunityBtn.textContent = 'Clear All Community Scripts';
-    clearCommunityBtn.style.cssText = `
-      margin-top: 4px;
-      padding: 4px 12px;
-      background: transparent;
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      color: var(--text-muted, #8888a0);
-      cursor: pointer;
-      font-size: 0.65rem;
-      font-family: "Inter", sans-serif;
-      transition: all 0.15s;
-      outline: none !important;
-      -webkit-appearance: none !important;
-      width: 100%;
-    `;
-    clearCommunityBtn.addEventListener('mouseenter', () => {
-      clearCommunityBtn.style.background = 'rgba(220,40,40,0.2)';
-      clearCommunityBtn.style.borderColor = 'rgba(220,40,40,0.4)';
-      clearCommunityBtn.style.color = '#ff6666';
-    });
-    clearCommunityBtn.addEventListener('mouseleave', () => {
-      clearCommunityBtn.style.background = 'transparent';
-      clearCommunityBtn.style.borderColor = 'var(--border, rgba(255,255,255,0.08))';
-      clearCommunityBtn.style.color = 'var(--text-muted, #8888a0)';
-    });
-    clearCommunityBtn.addEventListener('click', () => {
-      clearAllCommunityScripts();
-    });
+    const clearCommunityBtn = el('button', 'dm-btn dm-btn-neutral dm-btn-wide', { textContent: 'Clear All Community Scripts' });
+    clearCommunityBtn.addEventListener('click', () => clearAllCommunityScripts());
     scriptsTab.appendChild(clearCommunityBtn);
 
     contentArea.appendChild(scriptsTab);
 
     // ---- Tab Content: Game ----
-    const gameTab = document.createElement('div');
-    gameTab.className = 'tab-content';
+    const gameTab = el('div', `dm-tab-content tab-content${activeTab === 'game' ? ' dm-active' : ''}`);
     gameTab.id = 'tab-game';
-    gameTab.style.cssText = `
-      display: ${activeTab === 'game' ? 'block' : 'none'};
-      height: 100%;
-      overflow-y: auto;
-    `;
+    gameTab.appendChild(el('h2', 'dm-section-title', { textContent: 'Game Settings' }));
 
-    // Title
-    const gameTitle = document.createElement('h2');
-    gameTitle.textContent = 'Game Settings';
-    gameTitle.style.cssText = `
-      font-family: "Permanent Marker", cursive;
-      font-size: 1rem;
-      font-weight: 700;
-      color: #8a8aa0;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin: 0 0 12px 0;
-    `;
-    gameTab.appendChild(gameTitle);
-
-    // Toggle settings
     const toggleSettings = [
       { id: 'perm_crosshair', label: 'Permanent Crosshair' },
       { id: 'perm_tablist', label: 'Permanent Tablist' },
@@ -936,23 +713,8 @@ logoArea.appendChild(icon);
     ];
 
     toggleSettings.forEach(setting => {
-      const wrapper = document.createElement('div');
-      wrapper.style.cssText = `
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 4px 0;
-      `;
-
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.checked = gameSettings[setting.id] || false;
-      checkbox.style.cssText = `
-        width: 16px;
-        height: 16px;
-        accent-color: #2ECC71;
-        cursor: pointer;
-      `;
+      const wrapper = el('div', 'dm-toggle-row');
+      const checkbox = el('input', 'dm-checkbox', { type: 'checkbox', checked: gameSettings[setting.id] || false });
       checkbox.addEventListener('change', () => {
         gameSettings[setting.id] = checkbox.checked;
         saveSettings();
@@ -960,55 +722,20 @@ logoArea.appendChild(icon);
       });
       gameSettingElements[setting.id] = checkbox;
 
-      const label = document.createElement('label');
-      label.textContent = setting.label;
-      label.style.cssText = `
-        color: var(--text, #e8e8f0);
-        font-size: 0.78rem;
-        cursor: pointer;
-        user-select: none;
-      `;
-
+      const label = el('label', 'dm-toggle-label', { textContent: setting.label });
       wrapper.appendChild(checkbox);
       wrapper.appendChild(label);
       gameTab.appendChild(wrapper);
     });
 
     // Chat Height slider
-    const chatHeightWrapper = document.createElement('div');
-    chatHeightWrapper.style.cssText = `
-      margin-top: 8px;
-      padding: 4px 0;
-    `;
-
-    const chatHeightLabel = document.createElement('label');
-    chatHeightLabel.textContent = 'Chat Height';
-    chatHeightLabel.style.cssText = `
-      display: block;
-      color: var(--text-muted, #8888a0);
-      font-size: 0.72rem;
-      margin-bottom: 2px;
-    `;
-    chatHeightWrapper.appendChild(chatHeightLabel);
-
-    const chatHeightRow = document.createElement('div');
-    chatHeightRow.style.cssText = `
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    `;
-
-    const chatHeightInput = document.createElement('input');
-    chatHeightInput.type = 'range';
-    chatHeightInput.min = '0';
-    chatHeightInput.max = '10';
-    chatHeightInput.step = '0.5';
-    chatHeightInput.value = gameSettings.chat_height || 0;
-    chatHeightInput.style.cssText = `
-      flex: 1;
-      accent-color: #2ECC71;
-      cursor: pointer;
-    `;
+    const chatHeightWrapper = el('div', 'dm-slider-wrapper');
+    chatHeightWrapper.appendChild(el('label', 'dm-slider-label', { textContent: 'Chat Height' }));
+    const chatHeightRow = el('div', 'dm-slider-row');
+    const chatHeightInput = el('input', 'dm-slider', {
+      type: 'range', min: '0', max: '10', step: '0.5', value: gameSettings.chat_height || 0
+    });
+    const chatHeightValue = el('span', 'dm-slider-value', { textContent: (gameSettings.chat_height || 0).toFixed(1) });
     chatHeightInput.addEventListener('input', () => {
       gameSettings.chat_height = parseFloat(chatHeightInput.value);
       chatHeightValue.textContent = gameSettings.chat_height.toFixed(1);
@@ -1016,56 +743,21 @@ logoArea.appendChild(icon);
       applyGameSettings();
     });
     gameSettingElements.chat_height = chatHeightInput;
-
-    const chatHeightValue = document.createElement('span');
-    chatHeightValue.textContent = (gameSettings.chat_height || 0).toFixed(1);
-    chatHeightValue.style.cssText = `
-      color: var(--text, #e8e8f0);
-      font-size: 0.78rem;
-      min-width: 30px;
-      text-align: center;
-    `;
-
     chatHeightRow.appendChild(chatHeightInput);
     chatHeightRow.appendChild(chatHeightValue);
     chatHeightWrapper.appendChild(chatHeightRow);
     gameTab.appendChild(chatHeightWrapper);
 
     // Interface Opacity slider
-    const opacityWrapper = document.createElement('div');
-    opacityWrapper.style.cssText = `
-      margin-top: 8px;
-      padding: 4px 0;
-    `;
-
-    const opacityLabel = document.createElement('label');
-    opacityLabel.textContent = 'Interface Opacity';
-    opacityLabel.style.cssText = `
-      display: block;
-      color: var(--text-muted, #8888a0);
-      font-size: 0.72rem;
-      margin-bottom: 2px;
-    `;
-    opacityWrapper.appendChild(opacityLabel);
-
-    const opacityRow = document.createElement('div');
-    opacityRow.style.cssText = `
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    `;
-
-    const opacityInput = document.createElement('input');
-    opacityInput.type = 'range';
-    opacityInput.min = '0';
-    opacityInput.max = '100';
-    opacityInput.step = '5';
-    opacityInput.value = gameSettings.interface_opacity || 100;
-    opacityInput.style.cssText = `
-      flex: 1;
-      accent-color: #2ECC71;
-      cursor: pointer;
-    `;
+    const opacityWrapper = el('div', 'dm-slider-wrapper');
+    opacityWrapper.appendChild(el('label', 'dm-slider-label', { textContent: 'Interface Opacity' }));
+    const opacityRow = el('div', 'dm-slider-row');
+    const opacityInput = el('input', 'dm-slider', {
+      type: 'range', min: '0', max: '100', step: '5', value: gameSettings.interface_opacity || 100
+    });
+    const opacityValue = el('span', 'dm-slider-value dm-slider-value-wide', {
+      textContent: (gameSettings.interface_opacity || 100) + '%'
+    });
     opacityInput.addEventListener('input', () => {
       gameSettings.interface_opacity = parseInt(opacityInput.value);
       opacityValue.textContent = gameSettings.interface_opacity + '%';
@@ -1073,358 +765,88 @@ logoArea.appendChild(icon);
       applyGameSettings();
     });
     gameSettingElements.interface_opacity = opacityInput;
-
-    const opacityValue = document.createElement('span');
-    opacityValue.textContent = (gameSettings.interface_opacity || 100) + '%';
-    opacityValue.style.cssText = `
-      color: var(--text, #e8e8f0);
-      font-size: 0.78rem;
-      min-width: 40px;
-      text-align: center;
-    `;
-
     opacityRow.appendChild(opacityInput);
     opacityRow.appendChild(opacityValue);
     opacityWrapper.appendChild(opacityRow);
     gameTab.appendChild(opacityWrapper);
 
     // Interface Bounds dropdown
-    const boundsWrapper = document.createElement('div');
-    boundsWrapper.style.cssText = `
-      margin-top: 8px;
-      padding: 4px 0;
-    `;
-
-    const boundsLabel = document.createElement('label');
-    boundsLabel.textContent = 'Interface Scale';
-    boundsLabel.style.cssText = `
-      display: block;
-      color: var(--text-muted, #8888a0);
-      font-size: 0.72rem;
-      margin-bottom: 2px;
-    `;
-    boundsWrapper.appendChild(boundsLabel);
-
-    const boundsSelect = document.createElement('select');
-    boundsSelect.style.cssText = `
-      width: 100%;
-      padding: 6px 8px;
-      background: var(--bg2, #2a2a33);
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      color: var(--text, #e8e8f0);
-      font-size: 0.78rem;
-      font-family: "Inter", sans-serif;
-      outline: none !important;
-      -webkit-appearance: none !important;
-      cursor: pointer;
-    `;
-    
+    const boundsWrapper = el('div', 'dm-slider-wrapper');
+    boundsWrapper.appendChild(el('label', 'dm-slider-label', { textContent: 'Interface Scale' }));
+    const boundsSelect = el('select', 'dm-select');
     const boundsOptions = [
       { value: '0', label: '80%' },
       { value: '1', label: '90%' },
       { value: '2', label: '100%' }
     ];
-    
     boundsOptions.forEach(opt => {
-      const option = document.createElement('option');
-      option.value = opt.value;
-      option.textContent = opt.label;
-      if (gameSettings.interface_bounds === opt.value) {
-        option.selected = true;
-      }
+      const option = el('option', null, { value: opt.value, textContent: opt.label });
+      if (gameSettings.interface_bounds === opt.value) option.selected = true;
       boundsSelect.appendChild(option);
     });
-    
     boundsSelect.addEventListener('change', () => {
       gameSettings.interface_bounds = boundsSelect.value;
       saveSettings();
       applyGameSettings();
     });
     gameSettingElements.interface_bounds = boundsSelect;
-    
     boundsWrapper.appendChild(boundsSelect);
     gameTab.appendChild(boundsWrapper);
 
-    // Apply button
-    const applyGameBtn = document.createElement('button');
-    applyGameBtn.textContent = 'Apply Game Settings';
-    applyGameBtn.style.cssText = `
-      margin-top: 12px;
-      padding: 6px 16px;
-      background: var(--green-dim, rgba(46, 204, 113, 0.15));
-      border: 1px solid var(--green-border, rgba(46, 204, 113, 0.35));
-      border-radius: 0px;
-      color: var(--green, #2ECC71);
-      cursor: pointer;
-      font-size: 0.78rem;
-      font-family: "Inter", sans-serif;
-      transition: all 0.15s;
-      outline: none !important;
-      -webkit-appearance: none !important;
-      width: 100%;
-    `;
-    applyGameBtn.addEventListener('mouseenter', () => {
-      applyGameBtn.style.background = 'rgba(46, 204, 113, 0.25)';
-    });
-    applyGameBtn.addEventListener('mouseleave', () => {
-      applyGameBtn.style.background = 'var(--green-dim, rgba(46, 204, 113, 0.15))';
-    });
+    const applyGameBtn = el('button', 'dm-btn dm-btn-green dm-btn-block', { textContent: 'Apply Game Settings' });
+    applyGameBtn.style.marginTop = '12px';
     applyGameBtn.addEventListener('click', applyGameSettings);
     gameTab.appendChild(applyGameBtn);
 
     contentArea.appendChild(gameTab);
 
     // ---- Tab Content: Client ----
-    const clientTab = document.createElement('div');
-    clientTab.className = 'tab-content';
+    const clientTab = el('div', `dm-tab-content tab-content${activeTab === 'client' ? ' dm-active' : ''}`);
     clientTab.id = 'tab-client';
-    clientTab.style.cssText = `
-      display: ${activeTab === 'client' ? 'block' : 'none'};
-      height: 100%;
-      padding: 10px 0;
-    `;
+    clientTab.style.padding = '10px 0';
+    clientTab.appendChild(el('h2', 'dm-section-title', { textContent: 'Client Settings' }));
 
-    const clientTitle = document.createElement('h2');
-    clientTitle.textContent = 'Client Settings';
-    clientTitle.style.cssText = `
-      font-family: "Permanent Marker", cursive;
-      font-size: 1rem;
-      font-weight: 700;
-      color: #8a8aa0;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin: 0 0 12px 0;
-    `;
-    clientTab.appendChild(clientTitle);
-
-    // Export section
-    const exportLabel = document.createElement('label');
-    exportLabel.textContent = 'Export Settings';
-    exportLabel.style.cssText = `
-      display: block;
-      margin-top: 8px;
-      margin-bottom: 4px;
-      font-weight: 600;
-      color: var(--text-muted, #8888a0);
-      font-size: 0.72rem;
-      letter-spacing: 0.03em;
-    `;
-    clientTab.appendChild(exportLabel);
-
-    const exportBtn = document.createElement('button');
-    exportBtn.textContent = 'Export Settings to JSON';
-    exportBtn.style.cssText = `
-      width: 100%;
-      padding: 8px 12px;
-      background: var(--blue-dim, rgba(52, 152, 219, 0.15));
-      border: 1px solid var(--blue-border, rgba(52, 152, 219, 0.35));
-      border-radius: 0px;
-      color: var(--blue, #3498db);
-      cursor: pointer;
-      font-size: 0.78rem;
-      font-family: "Inter", sans-serif;
-      transition: all 0.15s;
-      margin-bottom: 12px;
-      outline: none !important;
-      -webkit-appearance: none !important;
-    `;
-    exportBtn.addEventListener('mouseenter', () => {
-      exportBtn.style.background = 'rgba(52, 152, 219, 0.25)';
-    });
-    exportBtn.addEventListener('mouseleave', () => {
-      exportBtn.style.background = 'var(--blue-dim, rgba(52, 152, 219, 0.15))';
-    });
+    clientTab.appendChild(el('label', 'dm-label', { textContent: 'Export Settings' }));
+    const exportBtn = el('button', 'dm-btn dm-btn-blue dm-btn-block', { textContent: 'Export Settings to JSON' });
+    exportBtn.style.marginBottom = '12px';
     exportBtn.addEventListener('click', exportSettings);
     clientTab.appendChild(exportBtn);
 
-    // Import section
-    const importLabel = document.createElement('label');
-    importLabel.textContent = 'Import Settings';
-    importLabel.style.cssText = `
-      display: block;
-      margin-top: 8px;
-      margin-bottom: 4px;
-      font-weight: 600;
-      color: var(--text-muted, #8888a0);
-      font-size: 0.72rem;
-      letter-spacing: 0.03em;
-    `;
-    clientTab.appendChild(importLabel);
-
-    const importWrapper = document.createElement('div');
-    importWrapper.style.cssText = `
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    `;
-
-    const importInput = document.createElement('input');
-    importInput.type = 'file';
-    importInput.accept = '.json';
-    importInput.style.cssText = `
-      flex: 1;
-      padding: 6px 8px;
-      background: var(--bg2, #2a2a33);
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      color: var(--text, #e8e8f0);
-      font-size: 0.72rem;
-      font-family: "Inter", sans-serif;
-      outline: none !important;
-      -webkit-appearance: none !important;
-      cursor: pointer;
-    `;
+    clientTab.appendChild(el('label', 'dm-label', { textContent: 'Import Settings' }));
+    const importWrapper = el('div', 'dm-row');
+    const importInput = el('input', 'dm-file-input', { type: 'file', accept: '.json' });
     importInput.addEventListener('change', importSettings);
     importWrapper.appendChild(importInput);
 
-    const importBtn = document.createElement('button');
-    importBtn.textContent = 'Import';
-    importBtn.style.cssText = `
-      padding: 6px 12px;
-      background: var(--green-dim, rgba(46, 204, 113, 0.15));
-      border: 1px solid var(--green-border, rgba(46, 204, 113, 0.35));
-      border-radius: 0px;
-      color: var(--green, #2ECC71);
-      cursor: pointer;
-      font-size: 0.7rem;
-      font-family: "Inter", sans-serif;
-      transition: all 0.15s;
-      outline: none !important;
-      -webkit-appearance: none !important;
-      white-space: nowrap;
-    `;
-    importBtn.addEventListener('mouseenter', () => {
-      importBtn.style.background = 'rgba(46, 204, 113, 0.25)';
-    });
-    importBtn.addEventListener('mouseleave', () => {
-      importBtn.style.background = 'var(--green-dim, rgba(46, 204, 113, 0.15))';
-    });
+    const importBtn = el('button', 'dm-btn dm-btn-green', { textContent: 'Import' });
     importBtn.addEventListener('click', () => importInput.click());
     importWrapper.appendChild(importBtn);
-
     clientTab.appendChild(importWrapper);
 
-    // Reset section
-    const resetLabel = document.createElement('label');
-    resetLabel.textContent = 'Reset Settings';
-    resetLabel.style.cssText = `
-      display: block;
-      margin-top: 12px;
-      margin-bottom: 4px;
-      font-weight: 600;
-      color: var(--text-muted, #8888a0);
-      font-size: 0.72rem;
-      letter-spacing: 0.03em;
-    `;
-    clientTab.appendChild(resetLabel);
-
-    const resetBtn = document.createElement('button');
-    resetBtn.textContent = 'Reset to Defaults';
-    resetBtn.style.cssText = `
-      width: 100%;
-      padding: 8px 12px;
-      background: transparent;
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      color: var(--text-muted, #8888a0);
-      cursor: pointer;
-      font-size: 0.78rem;
-      font-family: "Inter", sans-serif;
-      transition: all 0.15s;
-      outline: none !important;
-      -webkit-appearance: none !important;
-    `;
-    resetBtn.addEventListener('mouseenter', () => {
-      resetBtn.style.background = 'rgba(220,40,40,0.2)';
-      resetBtn.style.borderColor = 'rgba(220,40,40,0.4)';
-      resetBtn.style.color = '#ff6666';
-    });
-    resetBtn.addEventListener('mouseleave', () => {
-      resetBtn.style.background = 'transparent';
-      resetBtn.style.borderColor = 'var(--border, rgba(255,255,255,0.08))';
-      resetBtn.style.color = 'var(--text-muted, #8888a0)';
-    });
+    clientTab.appendChild(el('label', 'dm-label', { textContent: 'Reset Settings' }));
+    clientTab.querySelector('label:last-of-type').style.marginTop = '12px';
+    const resetBtn = el('button', 'dm-btn dm-btn-neutral dm-btn-block', { textContent: 'Reset to Defaults' });
     resetBtn.addEventListener('click', resetSettings);
     clientTab.appendChild(resetBtn);
 
     contentArea.appendChild(clientTab);
 
     // ---- Tab Content: Files ----
-    const filesTab = document.createElement('div');
-    filesTab.className = 'tab-content';
+    const filesTab = el('div', `dm-tab-content dm-centered tab-content${activeTab === 'files' ? ' dm-active' : ''}`);
     filesTab.id = 'tab-files';
-    filesTab.style.cssText = `
-      display: ${activeTab === 'files' ? 'block' : 'none'};
-      height: 100%;
-      display: ${activeTab === 'files' ? 'flex' : 'none'};
-      align-items: center;
-      justify-content: center;
-    `;
-
-    const emptyMsg = document.createElement('div');
-    emptyMsg.style.cssText = `
-      padding: 20px;
-      text-align: center;
-      color: var(--text-muted, #8888a0);
-      font-size: 0.85rem;
-    `;
-    emptyMsg.innerHTML = '<i class="fas fa-folder-open" style="font-size: 2rem; display: block; margin-bottom: 8px; opacity: 0.3;"></i>File management moved to respective tabs';
+    const emptyMsg = el('div', 'dm-empty-msg dm-empty-large');
+    emptyMsg.innerHTML = '<i class="fas fa-folder-open"></i>File management moved to respective tabs';
     filesTab.appendChild(emptyMsg);
-
     contentArea.appendChild(filesTab);
 
     // ---- Tab Content: Settings ----
-    const settingsTab = document.createElement('div');
-    settingsTab.className = 'tab-content';
+    const settingsTab = el('div', `dm-tab-content tab-content${activeTab === 'settings' ? ' dm-active' : ''}`);
     settingsTab.id = 'tab-settings';
-    settingsTab.style.cssText = `
-      display: ${activeTab === 'settings' ? 'block' : 'none'};
-      height: 100%;
-      padding: 10px 0;
-    `;
+    settingsTab.style.padding = '10px 0';
+    settingsTab.appendChild(el('h2', 'dm-section-title', { textContent: 'Settings' }));
 
-    const settingsTitle = document.createElement('h2');
-    settingsTitle.textContent = 'Settings';
-    settingsTitle.style.cssText = `
-      font-family: "Permanent Marker", cursive;
-      font-size: 1rem;
-      font-weight: 700;
-      color: #8a8aa0;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin: 0 0 12px 0;
-    `;
-    settingsTab.appendChild(settingsTitle);
-
-    // Clear all styles button
-    const clearBtn = document.createElement('button');
-    clearBtn.textContent = 'Clear All Injected Styles & Scripts';
-    clearBtn.style.cssText = `
-      width: 100%;
-      padding: 8px 12px;
-      background: transparent;
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      color: var(--text-muted, #8888a0);
-      cursor: pointer;
-      font-size: 0.8rem;
-      font-family: "Inter", sans-serif;
-      transition: all 0.15s;
-      margin-bottom: 8px;
-      outline: none !important;
-      -webkit-appearance: none !important;
-    `;
-    clearBtn.addEventListener('mouseenter', () => {
-      clearBtn.style.background = 'rgba(220,40,40,0.2)';
-      clearBtn.style.borderColor = 'rgba(220,40,40,0.4)';
-      clearBtn.style.color = '#ff6666';
-    });
-    clearBtn.addEventListener('mouseleave', () => {
-      clearBtn.style.background = 'transparent';
-      clearBtn.style.borderColor = 'var(--border, rgba(255,255,255,0.08))';
-      clearBtn.style.color = 'var(--text-muted, #8888a0)';
-    });
+    const clearBtn = el('button', 'dm-btn dm-btn-neutral dm-btn-block', { textContent: 'Clear All Injected Styles & Scripts' });
+    clearBtn.style.marginBottom = '8px';
     clearBtn.addEventListener('click', () => {
       clearAllStyles(true);
       clearAllScripts(true);
@@ -1435,79 +857,31 @@ logoArea.appendChild(icon);
     });
     settingsTab.appendChild(clearBtn);
 
-    // Refresh community scripts button
-    const refreshBtn = document.createElement('button');
-    refreshBtn.textContent = 'Refresh Community Scripts';
-    refreshBtn.style.cssText = `
-      width: 100%;
-      padding: 8px 12px;
-      background: transparent;
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      color: var(--text-muted, #8888a0);
-      cursor: pointer;
-      font-size: 0.8rem;
-      font-family: "Inter", sans-serif;
-      transition: all 0.15s;
-      margin-bottom: 8px;
-      outline: none !important;
-      -webkit-appearance: none !important;
-    `;
-    refreshBtn.addEventListener('mouseenter', () => {
-      refreshBtn.style.background = 'rgba(46, 204, 113, 0.15)';
-      refreshBtn.style.borderColor = 'rgba(46, 204, 113, 0.35)';
-      refreshBtn.style.color = '#2ECC71';
-    });
-    refreshBtn.addEventListener('mouseleave', () => {
-      refreshBtn.style.background = 'transparent';
-      refreshBtn.style.borderColor = 'var(--border, rgba(255,255,255,0.08))';
-      refreshBtn.style.color = 'var(--text-muted, #8888a0)';
-    });
+    const refreshBtn = el('button', 'dm-btn dm-btn-neutral dm-hover-green dm-btn-block', { textContent: 'Refresh Community Scripts' });
+    refreshBtn.style.marginBottom = '8px';
     refreshBtn.addEventListener('click', loadCommunityScripts);
     settingsTab.appendChild(refreshBtn);
 
-    // Keybind info
-    const keybindInfo = document.createElement('div');
-    keybindInfo.style.cssText = `
-      padding: 10px 12px;
-      background: var(--bg2, #2a2a33);
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      font-size: 0.72rem;
-      color: var(--text-muted, #8888a0);
-      line-height: 1.5;
-    `;
+    const keybindInfo = el('div', 'dm-keybind-info');
     keybindInfo.innerHTML = `
-      <strong style="color: var(--text, #e8e8f0);">Keybinds</strong><br>
-      <kbd style="background: var(--bg3, #33333d); padding: 1px 8px; border-radius: 3px; color: #ccc; font-family: inherit;">Right Shift</kbd> - Toggle menu<br>
-      <kbd style="background: var(--bg3, #33333d); padding: 1px 8px; border-radius: 3px; color: #ccc; font-family: inherit;">Escape</kbd> - Close menu
+      <strong>Keybinds</strong><br>
+      <kbd>Right Shift</kbd> - Toggle menu<br>
+      <kbd>Escape</kbd> - Close menu
     `;
     settingsTab.appendChild(keybindInfo);
 
     contentArea.appendChild(settingsTab);
-
-    // Status indicator - hidden
-    const status = document.createElement('div');
-    status.id = 'dev-menu-status';
-    status.style.cssText = `
-      display: none;
-    `;
-    contentArea.appendChild(status);
 
     mainLayout.appendChild(contentArea);
     menuElement.appendChild(mainLayout);
     overlayElement.appendChild(menuElement);
     document.body.appendChild(overlayElement);
 
-    // Load Font Awesome if not already loaded
     loadFontAwesome();
     updateCssFileList();
     updateJsFileList();
-    
-    // Load community scripts
     loadCommunityScripts();
-    
-    // Apply game settings after UI is ready
+
     setTimeout(applyGameSettings, 500);
   }
 
@@ -1516,21 +890,14 @@ logoArea.appendChild(icon);
     if (e.button !== 0) return;
     if (e.target.closest('button')) return;
     e.preventDefault();
-    
+
     isDragging = true;
     const rect = menuElement.getBoundingClientRect();
     dragOffsetX = e.clientX - rect.left;
     dragOffsetY = e.clientY - rect.top;
-    startMenuX = rect.left;
-    startMenuY = rect.top;
-    startX = e.clientX;
-    startY = e.clientY;
-    
-    menuElement.style.cursor = 'grabbing';
-    menuElement.style.transition = 'none';
-    menuElement.style.transform = 'none';
-    menuElement.style.opacity = '1';
-    
+
+    menuElement.classList.add('dm-dragging');
+
     document.addEventListener('mousemove', onDragMove);
     document.addEventListener('mouseup', stopDrag);
   }
@@ -1540,20 +907,14 @@ logoArea.appendChild(icon);
     if (!touch) return;
     if (e.target.closest('button')) return;
     e.preventDefault();
-    
+
     isDragging = true;
     const rect = menuElement.getBoundingClientRect();
     dragOffsetX = touch.clientX - rect.left;
     dragOffsetY = touch.clientY - rect.top;
-    startMenuX = rect.left;
-    startMenuY = rect.top;
-    startX = touch.clientX;
-    startY = touch.clientY;
-    
-    menuElement.style.transition = 'none';
-    menuElement.style.transform = 'none';
-    menuElement.style.opacity = '1';
-    
+
+    menuElement.classList.add('dm-dragging');
+
     document.addEventListener('touchmove', onDragMoveTouch, { passive: false });
     document.addEventListener('touchend', stopDragTouch, { passive: false });
   }
@@ -1561,36 +922,22 @@ logoArea.appendChild(icon);
   function onDragMove(e) {
     if (!isDragging) return;
     e.preventDefault();
-    
-    const newX = e.clientX - dragOffsetX;
-    const newY = e.clientY - dragOffsetY;
-    
-    const maxX = window.innerWidth - menuElement.offsetWidth;
-    const maxY = window.innerHeight - menuElement.offsetHeight;
-    
-    menuX = Math.max(0, Math.min(newX, maxX));
-    menuY = Math.max(0, Math.min(newY, maxY));
-    
-    menuElement.style.left = menuX + 'px';
-    menuElement.style.top = menuY + 'px';
+    positionMenu(e.clientX - dragOffsetX, e.clientY - dragOffsetY);
   }
 
   function onDragMoveTouch(e) {
     if (!isDragging) return;
     e.preventDefault();
-    
     const touch = e.touches[0];
     if (!touch) return;
-    
-    const newX = touch.clientX - dragOffsetX;
-    const newY = touch.clientY - dragOffsetY;
-    
+    positionMenu(touch.clientX - dragOffsetX, touch.clientY - dragOffsetY);
+  }
+
+  function positionMenu(newX, newY) {
     const maxX = window.innerWidth - menuElement.offsetWidth;
     const maxY = window.innerHeight - menuElement.offsetHeight;
-    
     menuX = Math.max(0, Math.min(newX, maxX));
     menuY = Math.max(0, Math.min(newY, maxY));
-    
     menuElement.style.left = menuX + 'px';
     menuElement.style.top = menuY + 'px';
   }
@@ -1598,8 +945,7 @@ logoArea.appendChild(icon);
   function stopDrag() {
     if (!isDragging) return;
     isDragging = false;
-    menuElement.style.cursor = '';
-    menuElement.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+    menuElement.classList.remove('dm-dragging');
     document.removeEventListener('mousemove', onDragMove);
     document.removeEventListener('mouseup', stopDrag);
   }
@@ -1607,7 +953,7 @@ logoArea.appendChild(icon);
   function stopDragTouch() {
     if (!isDragging) return;
     isDragging = false;
-    menuElement.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+    menuElement.classList.remove('dm-dragging');
     document.removeEventListener('touchmove', onDragMoveTouch);
     document.removeEventListener('touchend', stopDragTouch);
   }
@@ -1615,27 +961,17 @@ logoArea.appendChild(icon);
   // ---- Switch Tab ----
   function switchTab(tabId) {
     activeTab = tabId;
-    
-    // Update sidebar buttons
+
     document.querySelectorAll('.sidebar-tab').forEach(btn => {
-      const tab = btn.dataset.tab;
-      if (tab) {
-        const isActive = tab === tabId;
-        btn.style.background = isActive ? 'var(--green-dim, rgba(46, 204, 113, 0.15))' : 'transparent';
-        btn.style.border = isActive ? '1px solid var(--green-border, rgba(46, 204, 113, 0.35))' : 'none';
-        btn.style.color = isActive ? 'var(--green, #2ECC71)' : '#555568';
-      }
+      btn.classList.toggle('dm-active', btn.dataset.tab === tabId);
     });
-    
-    // Update content panels
+
     document.querySelectorAll('.tab-content').forEach(content => {
-      content.style.display = 'none';
+      content.classList.remove('dm-active');
     });
-    
+
     const target = document.getElementById(`tab-${tabId}`);
-    if (target) {
-      target.style.display = 'block';
-    }
+    if (target) target.classList.add('dm-active');
   }
 
   // ---- Load Font Awesome ----
@@ -1650,13 +986,12 @@ logoArea.appendChild(icon);
 
   // ---- Apply Game Settings ----
   function applyGameSettings() {
-    // Remove existing game styles
     if (gameStylesElement && gameStylesElement.parentNode) {
       gameStylesElement.remove();
     }
-    
+
     const styles = [];
-    
+
     if (gameSettings.perm_crosshair)
       styles.push(
         ".crosshair-static { opacity: 1 !important; visibility: visible !important; display: block !important; }"
@@ -1698,17 +1033,15 @@ logoArea.appendChild(icon);
         `.desktop-game-interface { transform: scale(${scale}) !important; }`
       );
     }
-    
+
     if (styles.length > 0) {
       gameStylesElement = document.createElement('style');
       gameStylesElement.dataset.devMenu = 'true';
       gameStylesElement.dataset.type = 'game';
       gameStylesElement.textContent = styles.join('\n');
       document.head.appendChild(gameStylesElement);
-      gameSettingsApplied = true;
       console.log('[UbuntuClient] Applied game settings,', styles.length, 'styles');
     } else {
-      gameSettingsApplied = false;
       console.log('[UbuntuClient] No game settings to apply');
     }
   }
@@ -1721,11 +1054,11 @@ logoArea.appendChild(icon);
         exportedAt: new Date().toISOString(),
         version: '1.0'
       };
-      
+
       const json = JSON.stringify(data, null, 2);
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
-      
+
       const a = document.createElement('a');
       a.href = url;
       a.download = `client-settings-${new Date().toISOString().slice(0,10)}.json`;
@@ -1733,7 +1066,7 @@ logoArea.appendChild(icon);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      
+
       console.log('[UbuntuClient] Settings exported');
     } catch (e) {
       console.error('[UbuntuClient] Failed to export settings:', e);
@@ -1744,20 +1077,16 @@ logoArea.appendChild(icon);
   function importSettings(e) {
     const file = e.target.files[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
     reader.onload = function(event) {
       try {
         const data = JSON.parse(event.target.result);
         if (data.settings) {
-          // Merge with defaults
           gameSettings = { ...gameSettings, ...data.settings };
           saveSettings();
-          
-          // Update UI elements
           updateGameSettingsUI();
           applyGameSettings();
-          
           console.log('[UbuntuClient] Settings imported successfully');
           e.target.value = '';
         } else {
@@ -1772,33 +1101,25 @@ logoArea.appendChild(icon);
 
   // ---- Update Game Settings UI ----
   function updateGameSettingsUI() {
-    // Update toggles
     const toggleIds = ['perm_crosshair', 'perm_tablist', 'hide_chat', 'hide_kill_text', 'hide_interface', 'skip_loading'];
     toggleIds.forEach(id => {
       if (gameSettingElements[id]) {
         gameSettingElements[id].checked = gameSettings[id] || false;
       }
     });
-    
-    // Update chat height
+
     if (gameSettingElements.chat_height) {
       gameSettingElements.chat_height.value = gameSettings.chat_height || 0;
       const valueDisplay = gameSettingElements.chat_height.parentElement?.querySelector('span');
-      if (valueDisplay) {
-        valueDisplay.textContent = (gameSettings.chat_height || 0).toFixed(1);
-      }
+      if (valueDisplay) valueDisplay.textContent = (gameSettings.chat_height || 0).toFixed(1);
     }
-    
-    // Update opacity
+
     if (gameSettingElements.interface_opacity) {
       gameSettingElements.interface_opacity.value = gameSettings.interface_opacity || 100;
       const valueDisplay = gameSettingElements.interface_opacity.parentElement?.querySelector('span');
-      if (valueDisplay) {
-        valueDisplay.textContent = (gameSettings.interface_opacity || 100) + '%';
-      }
+      if (valueDisplay) valueDisplay.textContent = (gameSettings.interface_opacity || 100) + '%';
     }
-    
-    // Update bounds
+
     if (gameSettingElements.interface_bounds) {
       gameSettingElements.interface_bounds.value = gameSettings.interface_bounds || '2';
     }
@@ -1807,8 +1128,8 @@ logoArea.appendChild(icon);
   // ---- Reset Settings ----
   function resetSettings() {
     if (!confirm('Reset all game settings to defaults?')) return;
-    
-    const defaults = {
+
+    gameSettings = {
       perm_crosshair: false,
       perm_tablist: false,
       hide_chat: false,
@@ -1819,12 +1140,11 @@ logoArea.appendChild(icon);
       interface_opacity: 100,
       interface_bounds: '2'
     };
-    
-    gameSettings = { ...defaults };
+
     saveSettings();
     updateGameSettingsUI();
     applyGameSettings();
-    
+
     console.log('[UbuntuClient] Settings reset to defaults');
   }
 
@@ -1832,22 +1152,15 @@ logoArea.appendChild(icon);
   function loadCommunityScripts() {
     const dropdown = communityScriptDropdown;
     if (!dropdown) return;
-    
-    // Show loading state
+
     dropdown.innerHTML = '';
-    const loadingOption = document.createElement('option');
-    loadingOption.textContent = 'Loading scripts...';
-    loadingOption.disabled = true;
-    loadingOption.selected = true;
-    dropdown.appendChild(loadingOption);
-    
+    dropdown.appendChild(el('option', null, { textContent: 'Loading scripts...', disabled: true, selected: true }));
+
     const scriptUrl = 'https://raw.githubusercontent.com/imnotkoolkid/KCH/refs/heads/main/data/script.json';
-    
+
     fetch(scriptUrl)
       .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
       })
       .then(data => {
@@ -1858,11 +1171,7 @@ logoArea.appendChild(icon);
       .catch(err => {
         console.error('[UbuntuClient] Failed to load community scripts:', err);
         dropdown.innerHTML = '';
-        const errorOption = document.createElement('option');
-        errorOption.textContent = 'Error loading scripts';
-        errorOption.disabled = true;
-        errorOption.selected = true;
-        dropdown.appendChild(errorOption);
+        dropdown.appendChild(el('option', null, { textContent: 'Error loading scripts', disabled: true, selected: true }));
       });
   }
 
@@ -1870,31 +1179,18 @@ logoArea.appendChild(icon);
   function populateCommunityDropdown() {
     const dropdown = communityScriptDropdown;
     if (!dropdown) return;
-    
+
     dropdown.innerHTML = '';
-    
+
     if (communityScripts.length === 0) {
-      const emptyOption = document.createElement('option');
-      emptyOption.textContent = 'No scripts available';
-      emptyOption.disabled = true;
-      emptyOption.selected = true;
-      dropdown.appendChild(emptyOption);
+      dropdown.appendChild(el('option', null, { textContent: 'No scripts available', disabled: true, selected: true }));
       return;
     }
-    
-    // Add default option
-    const defaultOption = document.createElement('option');
-    defaultOption.textContent = '-- Select a script --';
-    defaultOption.value = '';
-    defaultOption.selected = true;
-    dropdown.appendChild(defaultOption);
-    
-    // Add scripts
+
+    dropdown.appendChild(el('option', null, { textContent: '-- Select a script --', value: '', selected: true }));
+
     communityScripts.forEach((script, index) => {
-      const option = document.createElement('option');
-      option.value = index;
-      option.textContent = script.name;
-      dropdown.appendChild(option);
+      dropdown.appendChild(el('option', null, { value: index, textContent: script.name }));
     });
   }
 
@@ -1902,31 +1198,27 @@ logoArea.appendChild(icon);
   function installCommunityScript() {
     const dropdown = communityScriptDropdown;
     if (!dropdown) return;
-    
+
     const selectedIndex = parseInt(dropdown.value);
     if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= communityScripts.length) {
       console.warn('[UbuntuClient] No valid script selected');
       return;
     }
-    
+
     const script = communityScripts[selectedIndex];
     if (!script || !script.url) {
       console.warn('[UbuntuClient] Script has no URL');
       return;
     }
-    
-    // Check if already installed
+
     if (installedCommunityScripts.some(s => s.name === script.name)) {
       console.warn('[UbuntuClient] Script already installed:', script.name);
       return;
     }
-    
-    // Install the script
+
     fetch(script.url)
       .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.text();
       })
       .then(jsContent => {
@@ -1937,13 +1229,9 @@ logoArea.appendChild(icon);
         scriptElement.textContent = jsContent;
         document.head.appendChild(scriptElement);
         injectedScripts.push(scriptElement);
-        
-        // Add to installed list
-        installedCommunityScripts.push({
-          ...script,
-          element: scriptElement
-        });
-        
+
+        installedCommunityScripts.push({ ...script, element: scriptElement });
+
         updateCommunityScriptList();
         console.log('[UbuntuClient] Installed community script:', script.name);
       })
@@ -1955,18 +1243,16 @@ logoArea.appendChild(icon);
   // ---- Uninstall Community Script ----
   function uninstallCommunityScript(index) {
     if (index < 0 || index >= installedCommunityScripts.length) return;
-    
+
     const script = installedCommunityScripts[index];
     if (!script) return;
-    
-    // Remove the script element from DOM
+
     if (script.element && script.element.parentNode) {
       script.element.remove();
       const idx = injectedScripts.indexOf(script.element);
       if (idx > -1) injectedScripts.splice(idx, 1);
     }
-    
-    // Remove from installed list
+
     installedCommunityScripts.splice(index, 1);
     updateCommunityScriptList();
     console.log('[UbuntuClient] Uninstalled community script:', script.name);
@@ -1976,17 +1262,15 @@ logoArea.appendChild(icon);
   function clearAllCommunityScripts() {
     const scriptsToRemove = [];
     installedCommunityScripts.forEach(script => {
-      if (script.element && script.element.parentNode) {
-        scriptsToRemove.push(script.element);
-      }
+      if (script.element && script.element.parentNode) scriptsToRemove.push(script.element);
     });
-    
+
     scriptsToRemove.forEach(element => {
       element.remove();
       const idx = injectedScripts.indexOf(element);
       if (idx > -1) injectedScripts.splice(idx, 1);
     });
-    
+
     installedCommunityScripts = [];
     updateCommunityScriptList();
     console.log('[UbuntuClient] Cleared all community scripts');
@@ -1995,83 +1279,24 @@ logoArea.appendChild(icon);
   // ---- Update Community Script List ----
   function updateCommunityScriptList() {
     if (!communityScriptListContainer) return;
-    
     communityScriptListContainer.innerHTML = '';
-    
+
     if (installedCommunityScripts.length === 0) {
-      const emptyMsg = document.createElement('div');
-      emptyMsg.style.cssText = `
-        padding: 4px;
-        text-align: center;
-        color: var(--text-muted, #8888a0);
-        font-size: 0.7rem;
-      `;
-      emptyMsg.textContent = 'No community scripts installed yet.';
-      communityScriptListContainer.appendChild(emptyMsg);
+      communityScriptListContainer.appendChild(
+        el('div', 'dm-empty-msg', { textContent: 'No community scripts installed yet.' })
+      );
       return;
     }
-    
+
     installedCommunityScripts.forEach((script, index) => {
-      const fileItem = document.createElement('div');
-      fileItem.style.cssText = `
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 4px 8px;
-        background: var(--bg2, #2a2a33);
-        border: 1px solid var(--border, rgba(255,255,255,0.08));
-        border-radius: 0px;
-        font-size: 0.7rem;
-        color: var(--text, #e8e8f0);
-      `;
-      
-      const fileInfo = document.createElement('span');
-      fileInfo.style.cssText = `
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        overflow: hidden;
-      `;
-      
-      const icon = document.createElement('i');
-      icon.className = 'fa-users';
-      icon.style.cssText = `color: var(--purple, #9b59b6); font-size: 0.8rem;`;
-      fileInfo.appendChild(icon);
-      
-      const name = document.createElement('span');
-      name.textContent = script.name;
-      name.style.cssText = `overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.7rem;`;
-      fileInfo.appendChild(name);
-      
-      const deleteBtn = document.createElement('button');
-      deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
-      deleteBtn.style.cssText = `
-        background: transparent;
-        border: 1px solid var(--border, rgba(255,255,255,0.08));
-        border-radius: 0px;
-        color: var(--text-muted, #8888a0);
-        cursor: pointer;
-        padding: 2px 6px;
-        font-size: 0.6rem;
-        transition: all 0.15s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        outline: none !important;
-        -webkit-appearance: none !important;
-      `;
-      deleteBtn.addEventListener('mouseenter', () => {
-        deleteBtn.style.background = 'rgba(220,40,40,0.2)';
-        deleteBtn.style.borderColor = 'rgba(220,40,40,0.4)';
-        deleteBtn.style.color = '#ff6666';
-      });
-      deleteBtn.addEventListener('mouseleave', () => {
-        deleteBtn.style.background = 'transparent';
-        deleteBtn.style.borderColor = 'var(--border, rgba(255,255,255,0.08))';
-        deleteBtn.style.color = 'var(--text-muted, #8888a0)';
-      });
+      const fileItem = el('div', 'dm-file-item');
+      const fileInfo = el('div', 'dm-file-info');
+      fileInfo.appendChild(el('i', 'fa-users dm-file-icon-community'));
+      fileInfo.appendChild(el('span', 'dm-file-name', { textContent: script.name }));
+
+      const deleteBtn = el('button', 'dm-delete-btn', { innerHTML: '<i class="fas fa-times"></i>' });
       deleteBtn.addEventListener('click', () => uninstallCommunityScript(index));
-      
+
       fileItem.appendChild(fileInfo);
       fileItem.appendChild(deleteBtn);
       communityScriptListContainer.appendChild(fileItem);
@@ -2081,144 +1306,53 @@ logoArea.appendChild(icon);
   // ---- Update CSS File List ----
   function updateCssFileList() {
     if (!cssFileListContainer) return;
-    
     cssFileListContainer.innerHTML = '';
-    
+
     if (uploadedCssFiles.length === 0) {
-      const emptyMsg = document.createElement('div');
-      emptyMsg.style.cssText = `
-        padding: 4px;
-        text-align: center;
-        color: var(--text-muted, #8888a0);
-        font-size: 0.7rem;
-      `;
-      emptyMsg.textContent = 'No CSS files uploaded yet.';
-      cssFileListContainer.appendChild(emptyMsg);
-      return;
+      cssFileListContainer.appendChild(el('div', 'dm-empty-msg', { textContent: 'No CSS files uploaded yet.' }));
+    } else {
+      uploadedCssFiles.forEach((file, index) => {
+        cssFileListContainer.appendChild(createFileListItem(file, index, 'css'));
+      });
     }
-    
-    uploadedCssFiles.forEach((file, index) => {
-      const fileItem = createFileListItem(file, index, 'css');
-      cssFileListContainer.appendChild(fileItem);
-    });
-    
-    // Update file count
+
     const countEl = document.getElementById('css-file-count');
-    if (countEl) {
-      countEl.textContent = `${uploadedCssFiles.length} / ${MAX_CSS_FILES} CSS files uploaded`;
-    }
-    
-    // Enable/disable file input
-    if (cssFileInput) {
-      cssFileInput.disabled = uploadedCssFiles.length >= MAX_CSS_FILES;
-      cssFileInput.style.opacity = uploadedCssFiles.length >= MAX_CSS_FILES ? '0.5' : '1';
-    }
+    if (countEl) countEl.textContent = `${uploadedCssFiles.length} / ${MAX_CSS_FILES} CSS files uploaded`;
+
+    if (cssFileInput) cssFileInput.disabled = uploadedCssFiles.length >= MAX_CSS_FILES;
   }
 
   // ---- Update JS File List ----
   function updateJsFileList() {
     if (!jsFileListContainer) return;
-    
     jsFileListContainer.innerHTML = '';
-    
+
     if (uploadedJsFiles.length === 0) {
-      const emptyMsg = document.createElement('div');
-      emptyMsg.style.cssText = `
-        padding: 4px;
-        text-align: center;
-        color: var(--text-muted, #8888a0);
-        font-size: 0.7rem;
-      `;
-      emptyMsg.textContent = 'No JS files uploaded yet.';
-      jsFileListContainer.appendChild(emptyMsg);
-      return;
+      jsFileListContainer.appendChild(el('div', 'dm-empty-msg', { textContent: 'No JS files uploaded yet.' }));
+    } else {
+      uploadedJsFiles.forEach((file, index) => {
+        jsFileListContainer.appendChild(createFileListItem(file, index, 'js'));
+      });
     }
-    
-    uploadedJsFiles.forEach((file, index) => {
-      const fileItem = createFileListItem(file, index, 'js');
-      jsFileListContainer.appendChild(fileItem);
-    });
-    
-    // Update file count
+
     const countEl = document.getElementById('js-file-count');
-    if (countEl) {
-      countEl.textContent = `${uploadedJsFiles.length} / ${MAX_JS_FILES} JS files uploaded`;
-    }
-    
-    // Enable/disable file input
-    if (jsFileInput) {
-      jsFileInput.disabled = uploadedJsFiles.length >= MAX_JS_FILES;
-      jsFileInput.style.opacity = uploadedJsFiles.length >= MAX_JS_FILES ? '0.5' : '1';
-    }
+    if (countEl) countEl.textContent = `${uploadedJsFiles.length} / ${MAX_JS_FILES} JS files uploaded`;
+
+    if (jsFileInput) jsFileInput.disabled = uploadedJsFiles.length >= MAX_JS_FILES;
   }
 
   // ---- Create File List Item ----
   function createFileListItem(file, index, type) {
-    const fileItem = document.createElement('div');
-    fileItem.style.cssText = `
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 4px 8px;
-      background: var(--bg2, #2a2a33);
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      font-size: 0.7rem;
-      color: var(--text, #e8e8f0);
-    `;
-    
-    const fileInfo = document.createElement('span');
-    fileInfo.style.cssText = `
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      overflow: hidden;
-    `;
-    
-    const icon = document.createElement('i');
-    icon.className = type === 'css' ? 'fa-file-code' : 'fa-file-code';
-    icon.style.cssText = `color: ${type === 'css' ? 'var(--green, #2ECC71)' : 'var(--blue, #3498db)'}; font-size: 0.8rem;`;
-    fileInfo.appendChild(icon);
-    
-    const name = document.createElement('span');
-    name.textContent = file.name;
-    name.style.cssText = `overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.7rem;`;
-    fileInfo.appendChild(name);
-    
-    const size = document.createElement('span');
-    size.textContent = `(${(file.size / 1024).toFixed(1)} KB)`;
-    size.style.cssText = `color: var(--text-muted, #8888a0); font-size: 0.6rem;`;
-    fileInfo.appendChild(size);
-    
-    const deleteBtn = document.createElement('button');
-    deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
-    deleteBtn.style.cssText = `
-      background: transparent;
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      border-radius: 0px;
-      color: var(--text-muted, #8888a0);
-      cursor: pointer;
-      padding: 2px 6px;
-      font-size: 0.6rem;
-      transition: all 0.15s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      outline: none !important;
-      -webkit-appearance: none !important;
-    `;
-    deleteBtn.addEventListener('mouseenter', () => {
-      deleteBtn.style.background = 'rgba(220,40,40,0.2)';
-      deleteBtn.style.borderColor = 'rgba(220,40,40,0.4)';
-      deleteBtn.style.color = '#ff6666';
-    });
-    deleteBtn.addEventListener('mouseleave', () => {
-      deleteBtn.style.background = 'transparent';
-      deleteBtn.style.borderColor = 'var(--border, rgba(255,255,255,0.08))';
-      deleteBtn.style.color = 'var(--text-muted, #8888a0)';
-    });
+    const fileItem = el('div', 'dm-file-item');
+    const fileInfo = el('div', 'dm-file-info');
+
+    fileInfo.appendChild(el('i', `fa-file-code ${type === 'css' ? 'dm-file-icon-css' : 'dm-file-icon-js'}`));
+    fileInfo.appendChild(el('span', 'dm-file-name', { textContent: file.name }));
+    fileInfo.appendChild(el('span', 'dm-file-size', { textContent: `(${(file.size / 1024).toFixed(1)} KB)` }));
+
+    const deleteBtn = el('button', 'dm-delete-btn', { innerHTML: '<i class="fas fa-times"></i>' });
     deleteBtn.addEventListener('click', () => removeFile(index, type));
-    
+
     fileItem.appendChild(fileInfo);
     fileItem.appendChild(deleteBtn);
     return fileItem;
@@ -2230,39 +1364,27 @@ logoArea.appendChild(icon);
       if (index < 0 || index >= uploadedCssFiles.length) return;
       const removed = uploadedCssFiles[index];
       uploadedCssFiles.splice(index, 1);
-      
-      // Remove the injected style for this file
-      const stylesToRemove = [];
-      injectedStyles.forEach(style => {
-        if (style.dataset && style.dataset.fileName === removed.name) {
-          stylesToRemove.push(style);
-        }
-      });
+
+      const stylesToRemove = injectedStyles.filter(s => s.dataset && s.dataset.fileName === removed.name);
       stylesToRemove.forEach(style => {
         style.remove();
         const idx = injectedStyles.indexOf(style);
         if (idx > -1) injectedStyles.splice(idx, 1);
       });
-      
+
       updateCssFileList();
     } else if (type === 'js') {
       if (index < 0 || index >= uploadedJsFiles.length) return;
       const removed = uploadedJsFiles[index];
       uploadedJsFiles.splice(index, 1);
-      
-      // Remove the injected script for this file
-      const scriptsToRemove = [];
-      injectedScripts.forEach(script => {
-        if (script.dataset && script.dataset.fileName === removed.name) {
-          scriptsToRemove.push(script);
-        }
-      });
+
+      const scriptsToRemove = injectedScripts.filter(s => s.dataset && s.dataset.fileName === removed.name);
       scriptsToRemove.forEach(script => {
         script.remove();
         const idx = injectedScripts.indexOf(script);
         if (idx > -1) injectedScripts.splice(idx, 1);
       });
-      
+
       updateJsFileList();
     }
   }
@@ -2271,14 +1393,11 @@ logoArea.appendChild(icon);
   function handleCssFileImport(e) {
     const file = e.target.files[0];
     if (!file) return;
-    
-    // Check if already at max
+
     if (uploadedCssFiles.length >= MAX_CSS_FILES) {
       cssFileInput.value = '';
       return;
     }
-    
-    // Check for duplicate filename
     if (uploadedCssFiles.some(f => f.name === file.name)) {
       cssFileInput.value = '';
       return;
@@ -2287,15 +1406,8 @@ logoArea.appendChild(icon);
     const reader = new FileReader();
     reader.onload = function(event) {
       const cssContent = event.target.result;
-      
-      // Store the file
-      uploadedCssFiles.push({
-        name: file.name,
-        content: cssContent,
-        size: file.size
-      });
-      
-      // Inject the CSS
+      uploadedCssFiles.push({ name: file.name, content: cssContent, size: file.size });
+
       try {
         const style = document.createElement('style');
         style.dataset.devMenu = 'true';
@@ -2304,18 +1416,16 @@ logoArea.appendChild(icon);
         style.textContent = cssContent;
         document.head.appendChild(style);
         injectedStyles.push(style);
-        
+
         updateCssFileList();
         console.log('[UbuntuClient] Uploaded CSS file:', file.name);
       } catch (err) {
         console.error('[UbuntuClient] Failed to inject file CSS:', err);
       }
-      
+
       cssFileInput.value = '';
     };
-    reader.onerror = function() {
-      cssFileInput.value = '';
-    };
+    reader.onerror = function() { cssFileInput.value = ''; };
     reader.readAsText(file);
   }
 
@@ -2323,14 +1433,11 @@ logoArea.appendChild(icon);
   function handleJsFileImport(e) {
     const file = e.target.files[0];
     if (!file) return;
-    
-    // Check if already at max
+
     if (uploadedJsFiles.length >= MAX_JS_FILES) {
       jsFileInput.value = '';
       return;
     }
-    
-    // Check for duplicate filename
     if (uploadedJsFiles.some(f => f.name === file.name)) {
       jsFileInput.value = '';
       return;
@@ -2339,15 +1446,8 @@ logoArea.appendChild(icon);
     const reader = new FileReader();
     reader.onload = function(event) {
       const jsContent = event.target.result;
-      
-      // Store the file
-      uploadedJsFiles.push({
-        name: file.name,
-        content: jsContent,
-        size: file.size
-      });
-      
-      // Inject the JavaScript
+      uploadedJsFiles.push({ name: file.name, content: jsContent, size: file.size });
+
       try {
         const script = document.createElement('script');
         script.dataset.devMenu = 'true';
@@ -2356,26 +1456,22 @@ logoArea.appendChild(icon);
         script.textContent = jsContent;
         document.head.appendChild(script);
         injectedScripts.push(script);
-        
+
         updateJsFileList();
         console.log('[UbuntuClient] Uploaded JS file:', file.name);
       } catch (err) {
         console.error('[UbuntuClient] Failed to inject file JavaScript:', err);
       }
-      
+
       jsFileInput.value = '';
     };
-    reader.onerror = function() {
-      jsFileInput.value = '';
-    };
+    reader.onerror = function() { jsFileInput.value = ''; };
     reader.readAsText(file);
   }
 
   // ---- Handle Auto-Apply for CSS ----
   function handleAutoApply() {
-    if (autoApplyTimeout) {
-      clearTimeout(autoApplyTimeout);
-    }
+    if (autoApplyTimeout) clearTimeout(autoApplyTimeout);
     autoApplyTimeout = setTimeout(() => {
       applyStyles();
       autoApplyTimeout = null;
@@ -2384,9 +1480,7 @@ logoArea.appendChild(icon);
 
   // ---- Handle Auto-Apply for JavaScript ----
   function handleJsAutoApply() {
-    if (autoApplyTimeout) {
-      clearTimeout(autoApplyTimeout);
-    }
+    if (autoApplyTimeout) clearTimeout(autoApplyTimeout);
     autoApplyTimeout = setTimeout(() => {
       applyJavaScript();
       autoApplyTimeout = null;
@@ -2398,26 +1492,17 @@ logoArea.appendChild(icon);
     const linkValue = cssLinkInput.value.trim();
     const rawValue = rawCssInput.value.trim();
 
-    // Clear previous URL and raw styles (but keep file styles)
-    const stylesToRemove = [];
-    injectedStyles.forEach(style => {
-      if (style.dataset && (style.dataset.type === 'url' || style.dataset.type === 'raw')) {
-        stylesToRemove.push(style);
-      }
-    });
+    const stylesToRemove = injectedStyles.filter(s => s.dataset && (s.dataset.type === 'url' || s.dataset.type === 'raw'));
     stylesToRemove.forEach(style => {
       style.remove();
       const idx = injectedStyles.indexOf(style);
       if (idx > -1) injectedStyles.splice(idx, 1);
     });
 
-    // Apply CSS from URL - Fetch and inject as raw CSS
     if (linkValue) {
       fetch(linkValue)
         .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
           return response.text();
         })
         .then(cssContent => {
@@ -2432,11 +1517,9 @@ logoArea.appendChild(icon);
         .catch(err => {
           console.error('[UbuntuClient] Failed to fetch CSS:', err);
         });
-      
       return;
     }
 
-    // Apply Raw CSS
     if (rawValue) {
       try {
         const style = document.createElement('style');
@@ -2457,26 +1540,17 @@ logoArea.appendChild(icon);
     const urlValue = jsUrlInput.value.trim();
     const rawValue = rawJsInput.value.trim();
 
-    // Clear previous URL and raw scripts (but keep file scripts)
-    const scriptsToRemove = [];
-    injectedScripts.forEach(script => {
-      if (script.dataset && (script.dataset.type === 'url' || script.dataset.type === 'raw')) {
-        scriptsToRemove.push(script);
-      }
-    });
+    const scriptsToRemove = injectedScripts.filter(s => s.dataset && (s.dataset.type === 'url' || s.dataset.type === 'raw'));
     scriptsToRemove.forEach(script => {
       script.remove();
       const idx = injectedScripts.indexOf(script);
       if (idx > -1) injectedScripts.splice(idx, 1);
     });
 
-    // Apply JavaScript from URL
     if (urlValue) {
       fetch(urlValue)
         .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
           return response.text();
         })
         .then(jsContent => {
@@ -2491,11 +1565,9 @@ logoArea.appendChild(icon);
         .catch(err => {
           console.error('[UbuntuClient] Failed to fetch JavaScript:', err);
         });
-      
       return;
     }
 
-    // Apply Raw JavaScript
     if (rawValue) {
       try {
         const script = document.createElement('script');
@@ -2513,79 +1585,41 @@ logoArea.appendChild(icon);
 
   // ---- Clear All Scripts ----
   function clearAllScripts(showFeedback = true) {
-    const scriptsToRemove = [];
-    injectedScripts.forEach(script => {
-      if (script.parentNode) {
-        scriptsToRemove.push(script);
-      }
-    });
-
-    scriptsToRemove.forEach(script => {
-      script.remove();
-    });
-
+    injectedScripts.filter(s => s.parentNode).forEach(script => script.remove());
     injectedScripts = [];
     uploadedJsFiles = [];
     updateJsFileList();
-    
-    if (showFeedback) {
-      console.log('[UbuntuClient] Cleared all injected scripts');
-    }
+    if (showFeedback) console.log('[UbuntuClient] Cleared all injected scripts');
   }
 
   // ---- Clear All Styles ----
   function clearAllStyles(showFeedback = true) {
-    const stylesToRemove = [];
-    injectedStyles.forEach(style => {
-      if (style.parentNode) {
-        stylesToRemove.push(style);
-      }
-    });
-
-    stylesToRemove.forEach(style => {
-      style.remove();
-    });
-
+    injectedStyles.filter(s => s.parentNode).forEach(style => style.remove());
     injectedStyles = [];
-    
-    // Clear uploaded CSS files
     uploadedCssFiles = [];
     updateCssFileList();
-    
-    if (showFeedback) {
-      console.log('[UbuntuClient] Cleared all injected styles');
-    }
+    if (showFeedback) console.log('[UbuntuClient] Cleared all injected styles');
   }
 
   // ---- Toggle Menu ----
   function toggleMenu(event) {
     if (event && event.key) {
-      if (event.key !== 'Shift' || event.location !== 2) {
-        return;
-      }
+      if (event.key !== 'Shift' || event.location !== 2) return;
       event.preventDefault();
     }
 
     menuVisible = !menuVisible;
-    overlayElement.style.display = menuVisible ? 'flex' : 'none';
+    overlayElement.classList.toggle('dm-visible', menuVisible);
 
     if (menuVisible) {
-      menuElement.style.transform = 'scale(1)';
-      menuElement.style.opacity = '1';
+      menuElement.classList.add('dm-open');
+      setTimeout(() => { if (cssLinkInput) cssLinkInput.focus(); }, 200);
       setTimeout(() => {
-        if (cssLinkInput) cssLinkInput.focus();
-      }, 200);
-      setTimeout(() => {
-        if (cssLinkInput.value.trim() || rawCssInput.value.trim()) {
-          applyStyles();
-        }
-        if (jsUrlInput.value.trim() || rawJsInput.value.trim()) {
-          applyJavaScript();
-        }
+        if (cssLinkInput.value.trim() || rawCssInput.value.trim()) applyStyles();
+        if (jsUrlInput.value.trim() || rawJsInput.value.trim()) applyJavaScript();
       }, 300);
     } else {
-      menuElement.style.transform = 'scale(0.95)';
-      menuElement.style.opacity = '0';
+      menuElement.classList.remove('dm-open');
     }
   }
 
@@ -2594,11 +1628,8 @@ logoArea.appendChild(icon);
     createMenu();
 
     document.addEventListener('keydown', toggleMenu);
-
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && menuVisible) {
-        toggleMenu(event);
-      }
+      if (event.key === 'Escape' && menuVisible) toggleMenu(event);
     });
 
     console.log('[UbuntuClient] Initialized. Press Right Shift to open.');
@@ -2617,24 +1648,17 @@ logoArea.appendChild(icon);
     document.removeEventListener('mouseup', stopDrag);
     document.removeEventListener('touchmove', onDragMoveTouch);
     document.removeEventListener('touchend', stopDragTouch);
-    if (overlayElement && overlayElement.parentNode) {
-      overlayElement.remove();
-    }
+    if (overlayElement && overlayElement.parentNode) overlayElement.remove();
+    const chromeStyles = document.getElementById(STYLE_ID);
+    if (chromeStyles) chromeStyles.remove();
     clearAllStyles(false);
     clearAllScripts(false);
     clearAllCommunityScripts();
-    if (statusTimeout) {
-      clearTimeout(statusTimeout);
-      statusTimeout = null;
-    }
-    if (autoApplyTimeout) {
-      clearTimeout(autoApplyTimeout);
-      autoApplyTimeout = null;
-    }
+    if (statusTimeout) { clearTimeout(statusTimeout); statusTimeout = null; }
+    if (autoApplyTimeout) { clearTimeout(autoApplyTimeout); autoApplyTimeout = null; }
     console.log('[UbuntuClient] Cleaned up.');
   }
 
-  // Start the addon
   init();
 
   return {

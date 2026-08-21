@@ -15,6 +15,7 @@ const { notificationsAddon } = require('./addons/notifications.js');
 const { friendStylerAddon } = require('./addons/friendstyler.js');
 const { copyUtilsAddon } = require('./addons/copyutils.js');
 const { devMenuAddon } = require('./addons/menu.js');
+const { scoreDisplayAddon } = require('./addons/Scorewithouttab.js');
 
 
 let discordRPC = null;
@@ -1301,7 +1302,8 @@ const combinedScript = injectionScript + '\n' +
                       '(' + notificationsAddon.toString() + ')();' + '\n' +
                       '(' + friendStylerAddon.toString() + ')();' + '\n' +
                       '(' + devMenuAddon.toString() + ')();' + '\n' +
-                      '(' + copyUtilsAddon.toString() + ')();';
+                      '(' + copyUtilsAddon.toString() + ')();' + '\n' +
+                      '(' + scoreDisplayAddon.toString() + ')();';
 
 
   const settingsPath = path.join(ubuntuFolder, 'settings.txt');

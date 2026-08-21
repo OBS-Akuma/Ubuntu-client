@@ -12,6 +12,7 @@
  */
 const twitchNewsAddon = () => {
   let observer = null;
+  let urlObserver = null;
   let isRunning = false;
   let retryCount = 0;
   const MAX_RETRIES = 5;
@@ -21,11 +22,16 @@ const twitchNewsAddon = () => {
   let dropsName = null;
   let dropsDescription = null;
   let hasDropData = false;
+  
+  let debounceTimer = null;
+  const DEBOUNCE_DELAY = 2000;
+  let isFetching = false;
+  let lastFetchTime = 0;
+  const MIN_FETCH_INTERVAL = 5000;
 
   const TWITCH_FAVICON = "https://assets.twitch.tv/assets/favicon-32-e29e246c157142c94346.png";
   const MAX_STREAMERS = 3;
 
-  // Function to fetch drops data from the API
   async function fetchDropsData() {
     try {
       const response = await fetch("https://twitch-drops-api.sunkwi.com/drops");
@@ -33,44 +39,32 @@ const twitchNewsAddon = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      console.log("[Twitch News] Drops API Response:", data);
       
-      // Find Kirka.io drops
       for (const drop of data) {
         const gameName = drop.gameDisplayName || "";
-        // Check for Kirka.io
         if (gameName === "Kirka.io" || gameName.toLowerCase().includes("kirka")) {
           hasDropData = true;
-          console.log("[Twitch News] Found Kirka drops data:", drop);
           
-          // Store the end time from the drop (top level)
           if (drop.endAt) {
             dropsEndTime = new Date(drop.endAt);
-            console.log(`[Twitch News] Drops end at: ${dropsEndTime}`);
           }
           
-          // Store name and description
           if (drop.name) {
             dropsName = drop.name;
-            console.log(`[Twitch News] Drops name: ${dropsName}`);
           }
           
           if (drop.description) {
             dropsDescription = drop.description;
-            console.log(`[Twitch News] Drops description: ${dropsDescription}`);
           }
           
-          // Get image from timeBasedDrops benefitEdges
           if (drop.rewards && Array.isArray(drop.rewards)) {
             for (const reward of drop.rewards) {
-              // Check timeBasedDrops for imageAssetURL
               if (reward.timeBasedDrops && Array.isArray(reward.timeBasedDrops)) {
                 for (const timeDrop of reward.timeBasedDrops) {
                   if (timeDrop.benefitEdges && Array.isArray(timeDrop.benefitEdges)) {
                     for (const edge of timeDrop.benefitEdges) {
                       if (edge.benefit && edge.benefit.imageAssetURL) {
                         dropsImageURL = edge.benefit.imageAssetURL;
-                        console.log(`[Twitch News] Found imageAssetURL: ${dropsImageURL}`);
                         break;
                       }
                     }
@@ -78,16 +72,13 @@ const twitchNewsAddon = () => {
                   if (dropsImageURL) break;
                 }
               }
-              // Also check if there's an imageURL at reward level
               if (!dropsImageURL && reward.imageURL) {
                 dropsImageURL = reward.imageURL;
-                console.log(`[Twitch News] Found reward imageURL: ${dropsImageURL}`);
               }
               if (dropsImageURL) break;
             }
           }
           
-          // Extract channels from rewards array
           if (drop.rewards && Array.isArray(drop.rewards)) {
             for (const reward of drop.rewards) {
               if (reward.allow && reward.allow.isEnabled && reward.allow.channels) {
@@ -99,25 +90,16 @@ const twitchNewsAddon = () => {
               }
             }
           }
-          console.log(`[Twitch News] Found ${dropsChannels.length} channels with drops from API`);
           break;
         }
       }
       
-      if (!hasDropData) {
-        console.log("[Twitch News] No Kirka drops found in API response");
-        const games = data.map(d => d.gameDisplayName);
-        console.log("[Twitch News] Available games:", games);
-      }
-      
       return { hasDropData, dropsChannels, dropsEndTime, dropsImageURL, dropsName, dropsDescription };
     } catch (error) {
-      console.error("[Twitch News] Failed to fetch drops data:", error);
       return { hasDropData: false, dropsChannels: [], dropsEndTime: null, dropsImageURL: null, dropsName: null, dropsDescription: null };
     }
   }
 
-  // Function to calculate time remaining until drops end
   function getTimeRemaining() {
     if (!dropsEndTime) return null;
     
@@ -141,14 +123,12 @@ const twitchNewsAddon = () => {
     }
   }
 
-  // Function to check if a streamer has drops
   function hasDrops(streamerName) {
     if (!dropsChannels.length) return false;
     const lowerName = streamerName.toLowerCase();
     return dropsChannels.includes(lowerName);
   }
 
-  // Function to format viewer count
   function formatViewers(count) {
     if (count >= 1000) {
       return (count / 1000).toFixed(1) + 'K';
@@ -156,27 +136,30 @@ const twitchNewsAddon = () => {
     return count.toString();
   }
 
-  // Function to create the news cards
-  async function createNewsCards() {
-    // Check if we're on the lobby page
+  async function createNewsCards(force = false) {
+    const now = Date.now();
+    if (!force && now - lastFetchTime < MIN_FETCH_INTERVAL) {
+      return false;
+    }
+    
+    if (isFetching) {
+      return false;
+    }
+    
     if (!document.querySelector("#app > .interface")) {
-      console.log("[Twitch News] Not on lobby page");
       return false;
     }
 
-    // Remove existing news container if it exists
     const existingNews = document.querySelector(".lobby-news");
     if (existingNews) {
       existingNews.remove();
     }
 
     try {
-      console.log("[Twitch News] Fetching streamers...");
+      isFetching = true;
       
-      // Fetch drops data from API
       const dropData = await fetchDropsData();
       
-      // Update variables from API response
       hasDropData = dropData.hasDropData;
       dropsChannels = dropData.dropsChannels;
       dropsEndTime = dropData.dropsEndTime;
@@ -184,11 +167,6 @@ const twitchNewsAddon = () => {
       dropsName = dropData.dropsName;
       dropsDescription = dropData.dropsDescription;
       
-      console.log(`[Twitch News] Has drop data: ${hasDropData}`);
-      console.log(`[Twitch News] Drop name: ${dropsName}`);
-      console.log(`[Twitch News] Drop image: ${dropsImageURL}`);
-      
-      // Fetch streamer data from the API
       const response = await fetch("https://api2.kirka.io/api/wnMwWWNm/wnWmMwN");
       
       if (!response.ok) {
@@ -196,18 +174,13 @@ const twitchNewsAddon = () => {
       }
       
       const apiData = await response.json();
-      console.log("[Twitch News] API Response:", apiData);
-      
       let newsData = apiData.WwMw || [];
       
       if (!newsData.length) {
-        console.log("[Twitch News] No streamers found in API response");
+        isFetching = false;
         return false;
       }
       
-      console.log(`[Twitch News] Found ${newsData.length} streamers in API`);
-      
-      // Remove duplicates based on name
       const seenNames = new Set();
       const uniqueNews = [];
       
@@ -219,15 +192,11 @@ const twitchNewsAddon = () => {
         }
       }
       
-      console.log(`[Twitch News] ${uniqueNews.length} unique streamers after deduplication`);
-      
-      // Transform the API data to match the expected news format
       let streamerCards = uniqueNews.map(item => {
         const displayName = item.wNwWnWmM || item.wwMmWnW || "Twitch Streamer";
         const twitchUrl = item.WwMwW || `https://twitch.tv/${displayName}`;
         const profileImage = item.wnNWmwMW || "";
         const viewerCount = item.wNwWmnW || 0;
-        const liveText = `${formatViewers(viewerCount)} viewers`;
         
         const hasActiveDrops = hasDrops(displayName);
         
@@ -247,17 +216,11 @@ const twitchNewsAddon = () => {
         };
       });
 
-      // Sort streamers by viewer count (highest to lowest)
       streamerCards.sort((a, b) => b.viewerCount - a.viewerCount);
-      
-      // Limit to MAX_STREAMERS
       streamerCards = streamerCards.slice(0, MAX_STREAMERS);
-      console.log(`[Twitch News] Limited to ${streamerCards.length} streamers (top ${MAX_STREAMERS})`);
 
-      // Create a separate array for all cards
       let allCards = [];
 
-      // Add drop card at the top if we have data
       if (hasDropData && dropsImageURL) {
         const timeLeft = getTimeRemaining();
         if (timeLeft && timeLeft !== "Drops ended") {
@@ -277,23 +240,16 @@ const twitchNewsAddon = () => {
             updatedAt: Date.now()
           };
           allCards.push(dropCard);
-          console.log(`[Twitch News] Added drop card: "${dropsName}" at the top`);
-        } else {
-          console.log("[Twitch News] Drop has ended, not showing card");
         }
-      } else {
-        console.log("[Twitch News] No drop data from API, skipping drop card");
       }
 
-      // Then add all streamer cards after the drop card
       allCards = allCards.concat(streamerCards);
 
       if (!allCards.length) {
-        console.log("[Twitch News] No cards to display");
+        isFetching = false;
         return false;
       }
 
-      // Wait for left interface to be ready
       let leftInterface = document.querySelector("#app #left-interface");
       let attempts = 0;
       while (!leftInterface && attempts < 10) {
@@ -303,11 +259,10 @@ const twitchNewsAddon = () => {
       }
 
       if (!leftInterface) {
-        console.log("[Twitch News] Left interface not found");
+        isFetching = false;
         return false;
       }
 
-      // Create the news container
       const lobbyNewsContainer = document.createElement("div");
       lobbyNewsContainer.id = "lobby-news";
       lobbyNewsContainer.className = "lobby-news";
@@ -384,7 +339,6 @@ const twitchNewsAddon = () => {
             text-align: left;
           `;
 
-          // Title with Twitch icon
           const titleWrapper = document.createElement("div");
           titleWrapper.style.cssText = `
             display: flex;
@@ -392,7 +346,6 @@ const twitchNewsAddon = () => {
             gap: 0.5rem;
           `;
 
-          // Add Twitch icon
           if (newsItem.twitchIcon) {
             const icon = document.createElement("img");
             icon.src = newsItem.twitchIcon;
@@ -447,64 +400,76 @@ const twitchNewsAddon = () => {
       };
 
       allCards.forEach((newsItem) => createNewsCard(newsItem));
-      console.log(`[Twitch News] Successfully created ${allCards.length} cards (${allCards.filter(c => c.isDropCard).length} drop card + ${streamerCards.length} streamers)`);
       retryCount = 0;
+      lastFetchTime = Date.now();
+      isFetching = false;
       return true;
 
     } catch (error) {
-      console.error("[Twitch News] Failed to fetch streamers:", error);
+      isFetching = false;
       return false;
     }
   }
 
-  // Initialize the addon
+  const debouncedCreateNewsCards = (force = false) => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+    
+    if (force) {
+      createNewsCards(true);
+      return;
+    }
+    
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null;
+      createNewsCards(false);
+    }, DEBOUNCE_DELAY);
+  };
+
   async function init() {
     if (isRunning) {
-      console.log("[Twitch News] Already running");
       return;
     }
     
     isRunning = true;
-    console.log("[Twitch News] Initializing...");
 
-    let success = await createNewsCards();
+    let success = await createNewsCards(true);
     
     while (!success && retryCount < MAX_RETRIES) {
       retryCount++;
-      console.log(`[Twitch News] Retry ${retryCount}/${MAX_RETRIES}...`);
       await new Promise(resolve => setTimeout(resolve, 1000));
-      success = await createNewsCards();
+      success = await createNewsCards(true);
     }
 
-    observer = new MutationObserver(async () => {
+    observer = new MutationObserver(() => {
       const newsContainer = document.querySelector(".lobby-news");
       const leftInterface = document.querySelector("#app #left-interface");
       const isLobby = document.querySelector("#app > .interface");
       
       if (!newsContainer && leftInterface && isLobby) {
-        console.log("[Twitch News] News container missing, recreating...");
-        await createNewsCards();
+        debouncedCreateNewsCards(false);
       }
     });
 
-    observer.observe(document.body, {
+    const targetNode = document.querySelector("#app") || document.body;
+    observer.observe(targetNode, {
       childList: true,
-      subtree: true
+      subtree: true,
+      attributes: false
     });
-
-    console.log("[Twitch News] Observer started - watching for changes");
     
-    const urlObserver = new MutationObserver(() => {
+    urlObserver = new MutationObserver(() => {
       const isLobby = document.querySelector("#app > .interface");
       const newsContainer = document.querySelector(".lobby-news");
       
       if (isLobby && !newsContainer) {
-        console.log("[Twitch News] Lobby detected, creating news...");
-        createNewsCards();
+        debouncedCreateNewsCards(false);
       }
     });
     
-    urlObserver.observe(document.querySelector("#app") || document.body, {
+    urlObserver.observe(targetNode, {
       childList: true,
       subtree: true
     });
@@ -518,9 +483,18 @@ const twitchNewsAddon = () => {
   }
 
   function cleanup() {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+    
     if (observer) {
       observer.disconnect();
       observer = null;
+    }
+    if (urlObserver) {
+      urlObserver.disconnect();
+      urlObserver = null;
     }
     if (window.twitchNewsObserver) {
       window.twitchNewsObserver.disconnect();
@@ -529,7 +503,7 @@ const twitchNewsAddon = () => {
       window.twitchUrlObserver.disconnect();
     }
     isRunning = false;
-    console.log("[Twitch News] Cleaned up");
+    isFetching = false;
   }
 
   init();
