@@ -16,7 +16,9 @@ const { friendStylerAddon } = require('./addons/friendstyler.js');
 const { copyUtilsAddon } = require('./addons/copyutils.js');
 const { devMenuAddon } = require('./addons/menu.js');
 const { scoreDisplayAddon } = require('./addons/Scorewithouttab.js');
-
+const { customReqScripts } = require('./addons/marketusernames.js');
+const { kdDisplayAddon } = require('./addons/kdtabdisplay.js');
+const { roomPresetsAddon } = require('./addons/serverpresets.js');
 
 let discordRPC = null;
 let gameWindow = null;
@@ -1286,24 +1288,37 @@ function createGameWindow(settings = {}) {
     })();
   `;
 
-const combinedScript = injectionScript + '\n' + 
-                      gunTrackerScript + '\n' + 
-                      usernameHidingScript + '\n' + 
-                      endGameMessageScript + '\n' + 
-                      badgeScript + '\n' + 
-                      '(' + betterStatsAddon.toString() + ')();' + '\n' +
-                      '(' + overlayColorAddon.toString() + ')();' + '\n' +
-                      '(' + socialCardsAddon.toString() + ')();' + '\n' +
-                      '(' + inspectPriceAddon.toString() + ')();' + '\n' +
-                      '(' + twitchNewsAddon.toString() + ')();' + '\n' +
-                      '(' + friendListAddon.toString() + ')();' + '\n' +
-                      '(' + friendSearchAddon.toString() + ')();' + '\n' +
-                      '(' + roleDisplayAddon.toString() + ')();' + '\n' +
-                      '(' + notificationsAddon.toString() + ')();' + '\n' +
-                      '(' + friendStylerAddon.toString() + ')();' + '\n' +
-                      '(' + devMenuAddon.toString() + ')();' + '\n' +
-                      '(' + copyUtilsAddon.toString() + ')();' + '\n' +
-                      '(' + scoreDisplayAddon.toString() + ')();';
+ function safeCall(fn, label) {
+    return `
+      try {
+        (${fn.toString()})();
+      } catch (e) {
+        console.error('[AddonError] ${label} failed:', e && e.message, e && e.stack);
+      }
+    `;
+  }
+
+  const combinedScript = injectionScript + '\n' +
+                      gunTrackerScript + '\n' +
+                      usernameHidingScript + '\n' +
+                      endGameMessageScript + '\n' +
+                      badgeScript + '\n' +
+                      safeCall(betterStatsAddon, 'betterStatsAddon') + '\n' +
+                      safeCall(overlayColorAddon, 'overlayColorAddon') + '\n' +
+                      safeCall(socialCardsAddon, 'socialCardsAddon') + '\n' +
+                      safeCall(inspectPriceAddon, 'inspectPriceAddon') + '\n' +
+                      safeCall(twitchNewsAddon, 'twitchNewsAddon') + '\n' +
+                      safeCall(friendListAddon, 'friendListAddon') + '\n' +
+                      safeCall(friendSearchAddon, 'friendSearchAddon') + '\n' +
+                      safeCall(roleDisplayAddon, 'roleDisplayAddon') + '\n' +
+                      safeCall(notificationsAddon, 'notificationsAddon') + '\n' +
+                      safeCall(friendStylerAddon, 'friendStylerAddon') + '\n' +
+                      safeCall(devMenuAddon, 'devMenuAddon') + '\n' +
+                      safeCall(copyUtilsAddon, 'copyUtilsAddon') + '\n' +
+                      safeCall(customReqScripts, 'customReqScripts') + '\n' +
+                      safeCall(kdDisplayAddon, 'kdDisplayAddon') + '\n' +
+                      safeCall(roomPresetsAddon, 'roomPresetsAddon') + '\n' +
+                      safeCall(scoreDisplayAddon, 'scoreDisplayAddon');
 
 
   const settingsPath = path.join(ubuntuFolder, 'settings.txt');

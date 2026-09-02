@@ -1,7 +1,7 @@
 /**
  * Enhances the Kirka friend list with role-based grouping, online status,
  * streamer mode, better icons, and various toggle options.
- * 
+ *
  * - Groups friends by role (Admin, Moderator, etc.)
  * - Shows online friends at top of each group
  * - Blur in-game status option
@@ -9,6 +9,22 @@
  * - Better icons for online/busy/away status
  * - Lock unfriend option
  * - Role dividers with color accents
+ *
+ * Fix notes (2026-09):
+ * - reorganizeFriends() now disconnects/reconnects the item-level observer
+ *   around its own DOM writes, so it no longer triggers itself in an
+ *   infinite reorganize loop.
+ * - The observer now treats any attribute change on a descendant of
+ *   `.friend` (not just the `.friend` node itself) as reorganize-worthy,
+ *   so online/away/busy/in-game status swaps on nested dots/status spans
+ *   are picked up in real time.
+ * - getBadgeMap() now retries with backoff, and init() keeps retrying in
+ *   the background if the first fetch fails, so a single network hiccup
+ *   doesn't permanently disable the addon for the rest of the session.
+ * - Reinitialization is now keyed off whether the `.friends .list` DOM
+ *   node itself has been replaced (SPA re-render), rather than a single
+ *   isInitialized flag, so leaving and coming back reliably re-attaches
+ *   everything.
  */
 const friendListAddon = () => {
   'use strict';
@@ -17,6 +33,7 @@ const friendListAddon = () => {
   const STORAGE_KEY = 'kirka_friend_list_settings';
   let isOrganizing = false;
   let badgeMap = null;
+  let badgeMapFetchInFlight = false;
   let roleOrder = [];
   let observer = null;
   let friendListObserver = null;
@@ -26,9 +43,11 @@ const friendListAddon = () => {
   let betterIcons = false;
   let originalFriendOrder = [];
   let originalOrderSaved = false;
-  let isInitialized = false;
   let lockUnfriend = false;
   let roleColorMap = new Map();
+  let currentListEl = null;
+  let reorganizeTimeout = null;
+  let badgeRetryTimeout = null;
 
   const ICON_URLS = {
     busy: 'https://cdn.discordapp.com/role-icons/851443382353133579/7ff49c28f5ab9ccb2acb2d5b9391a793.webp',
@@ -56,46 +75,76 @@ const friendListAddon = () => {
     } catch (error) {}
   }
 
-  async function getBadgeMap() {
-    try {
-      const response = await fetch(BADGE_JSON_URL);
-      if (!response.ok) return null;
-      const data = await response.json();
-      const badgeMap = new Map();
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
 
-      data.forEach(item => {
-        const colorKey = Object.keys(item)[0];
-        const roleName = item[colorKey];
-        badgeMap.set(colorKey, roleName);
+  // Retries with backoff so a single failed fetch doesn't kill the addon
+  // for the rest of the session.
+  async function getBadgeMap(retries = 3, baseDelayMs = 1000) {
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const response = await fetch(BADGE_JSON_URL);
+        if (!response.ok) throw new Error(`bad response: ${response.status}`);
+        const data = await response.json();
+        const map = new Map();
 
-        const rgbMatch = colorKey.match(/(\d+),\s*(\d+),\s*(\d+)/);
-        if (rgbMatch) {
-          const rgb = `rgb(${rgbMatch[1]}, ${rgbMatch[2]}, ${rgbMatch[3]})`;
-          roleColorMap.set(roleName, rgb);
+        data.forEach(item => {
+          const colorKey = Object.keys(item)[0];
+          const roleName = item[colorKey];
+          map.set(colorKey, roleName);
+
+          const rgbMatch = colorKey.match(/(\d+),\s*(\d+),\s*(\d+)/);
+          if (rgbMatch) {
+            const rgb = `rgb(${rgbMatch[1]}, ${rgbMatch[2]}, ${rgbMatch[3]})`;
+            roleColorMap.set(roleName, rgb);
+          }
+        });
+
+        roleOrder = [];
+        const seenRoles = new Set();
+        data.forEach(item => {
+          const colorKey = Object.keys(item)[0];
+          const roleName = item[colorKey];
+          if (!seenRoles.has(roleName)) {
+            seenRoles.add(roleName);
+            roleOrder.push(roleName);
+          }
+        });
+
+        if (!roleOrder.includes('User')) {
+          roleOrder.push('User');
+          roleColorMap.set('User', '#8a8a8a');
         }
-      });
 
-      roleOrder = [];
-      const seenRoles = new Set();
-
-      data.forEach(item => {
-        const colorKey = Object.keys(item)[0];
-        const roleName = item[colorKey];
-        if (!seenRoles.has(roleName)) {
-          seenRoles.add(roleName);
-          roleOrder.push(roleName);
+        return map;
+      } catch (error) {
+        if (attempt < retries - 1) {
+          await sleep(baseDelayMs * (attempt + 1));
         }
-      });
-
-      if (!roleOrder.includes('User')) {
-        roleOrder.push('User');
-        roleColorMap.set('User', '#8a8a8a');
       }
-
-      return badgeMap;
-    } catch (error) {
-      return null;
     }
+    return null;
+  }
+
+  // Keeps trying in the background (slow interval) until the badge map
+  // loads successfully, instead of giving up forever after one failure.
+  function scheduleBadgeMapRetry() {
+    if (badgeMap || badgeMapFetchInFlight || badgeRetryTimeout) return;
+    badgeRetryTimeout = setTimeout(async () => {
+      badgeRetryTimeout = null;
+      if (badgeMap) return;
+      badgeMapFetchInFlight = true;
+      const map = await getBadgeMap();
+      badgeMapFetchInFlight = false;
+      if (map) {
+        badgeMap = map;
+        currentListEl = null; // force a fresh reorganize pass
+        ensureInitialized();
+      } else {
+        scheduleBadgeMapRetry();
+      }
+    }, 15000);
   }
 
   function changeAddFriendText() {
@@ -130,12 +179,12 @@ const friendListAddon = () => {
     return 0;
   }
 
-  function getFriendRole(friendElement, badgeMap) {
+  function getFriendRole(friendElement, map) {
     const badgeElement = friendElement.querySelector('.role-badge');
     if (badgeElement) {
       const colorKey = getBadgeColor(badgeElement);
-      if (colorKey && badgeMap.has(colorKey)) {
-        return badgeMap.get(colorKey);
+      if (colorKey && map.has(colorKey)) {
+        return map.get(colorKey);
       }
     }
     return 'User';
@@ -227,9 +276,11 @@ const friendListAddon = () => {
   function restoreOriginalOrder() {
     const friendContainer = document.querySelector('.friends .list');
     if (!friendContainer || originalFriendOrder.length === 0) return;
-    friendContainer.querySelectorAll('.role-divider').forEach(div => div.remove());
-    friendContainer.innerHTML = '';
-    originalFriendOrder.forEach(friend => friendContainer.appendChild(friend));
+    withObserverPaused(() => {
+      friendContainer.querySelectorAll('.role-divider').forEach(div => div.remove());
+      friendContainer.innerHTML = '';
+      originalFriendOrder.forEach(friend => friendContainer.appendChild(friend));
+    });
     if (blurInGame) applyInGameBlur();
   }
 
@@ -429,7 +480,7 @@ const friendListAddon = () => {
 
   function createStreamerDropdown() {
     const dropdown = document.createElement('div');
-    dropdown.className = 'bottom-row';
+    dropdown.className = 'bottom-row streamer-dropdown-container';
     dropdown.setAttribute('data-v-6631cc61', '');
     dropdown.style.paddingBottom = '8px';
     dropdown.style.borderBottom = '1px solid rgba(255, 255, 255, 0.05)';
@@ -464,74 +515,41 @@ const friendListAddon = () => {
     itemsDiv.className = 'items selectHide drop-up';
     itemsDiv.setAttribute('data-v-4d0573bf', '');
 
-    const noneOption = document.createElement('div');
-    noneOption.setAttribute('data-v-4d0573bf', '');
-    noneOption.textContent = 'None';
-    noneOption.style.cursor = 'pointer';
-    noneOption.addEventListener('click', function(e) {
-      e.stopPropagation();
-      streamerMode = 'none';
-      saveSettings();
-      selected.textContent = 'None';
-      itemsDiv.classList.add('selectHide');
-      applyStreamerMode();
+    const options = [
+      ['none', 'None'],
+      ['blur', 'Blur'],
+      ['abbrev', 'A...'],
+      ['abbrev_blur', 'A... + Blur']
+    ];
+
+    options.forEach(([mode, label2]) => {
+      const opt = document.createElement('div');
+      opt.setAttribute('data-v-4d0573bf', '');
+      opt.textContent = label2;
+      opt.style.cursor = 'pointer';
+      opt.addEventListener('click', function (e) {
+        e.stopPropagation();
+        streamerMode = mode;
+        saveSettings();
+        selected.textContent = label2;
+        itemsDiv.classList.add('selectHide');
+        applyStreamerMode();
+      });
+      itemsDiv.appendChild(opt);
     });
 
-    const blurOption = document.createElement('div');
-    blurOption.setAttribute('data-v-4d0573bf', '');
-    blurOption.textContent = 'Blur';
-    blurOption.style.cursor = 'pointer';
-    blurOption.addEventListener('click', function(e) {
-      e.stopPropagation();
-      streamerMode = 'blur';
-      saveSettings();
-      selected.textContent = 'Blur';
-      itemsDiv.classList.add('selectHide');
-      applyStreamerMode();
-    });
-
-    const abbrevOption = document.createElement('div');
-    abbrevOption.setAttribute('data-v-4d0573bf', '');
-    abbrevOption.textContent = 'A...';
-    abbrevOption.style.cursor = 'pointer';
-    abbrevOption.addEventListener('click', function(e) {
-      e.stopPropagation();
-      streamerMode = 'abbrev';
-      saveSettings();
-      selected.textContent = 'A...';
-      itemsDiv.classList.add('selectHide');
-      applyStreamerMode();
-    });
-
-    const abbrevBlurOption = document.createElement('div');
-    abbrevBlurOption.setAttribute('data-v-4d0573bf', '');
-    abbrevBlurOption.textContent = 'A... + Blur';
-    abbrevBlurOption.style.cursor = 'pointer';
-    abbrevBlurOption.addEventListener('click', function(e) {
-      e.stopPropagation();
-      streamerMode = 'abbrev_blur';
-      saveSettings();
-      selected.textContent = 'A... + Blur';
-      itemsDiv.classList.add('selectHide');
-      applyStreamerMode();
-    });
-
-    itemsDiv.appendChild(noneOption);
-    itemsDiv.appendChild(blurOption);
-    itemsDiv.appendChild(abbrevOption);
-    itemsDiv.appendChild(abbrevBlurOption);
     inputDiv.appendChild(selected);
     inputDiv.appendChild(itemsDiv);
     selectWrapper.appendChild(inputDiv);
     dropdown.appendChild(label);
     dropdown.appendChild(selectWrapper);
 
-    inputDiv.addEventListener('click', function(e) {
+    inputDiv.addEventListener('click', function (e) {
       e.stopPropagation();
       itemsDiv.classList.toggle('selectHide');
     });
 
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', function (e) {
       if (!dropdown.contains(e.target)) {
         itemsDiv.classList.add('selectHide');
       }
@@ -564,7 +582,7 @@ const friendListAddon = () => {
     if (blurCheckbox) {
       blurCheckbox.checked = blurInGame;
       blurCheckbox.setAttribute('data-v-730c0c40', '');
-      blurCheckbox.addEventListener('change', function(e) {
+      blurCheckbox.addEventListener('change', function () {
         blurInGame = this.checked;
         saveSettings();
         applyInGameBlur();
@@ -585,7 +603,7 @@ const friendListAddon = () => {
     if (dividerCheckbox) {
       dividerCheckbox.checked = showRoleDividers;
       dividerCheckbox.setAttribute('data-v-730c0c40', '');
-      dividerCheckbox.addEventListener('change', function(e) {
+      dividerCheckbox.addEventListener('change', function () {
         showRoleDividers = this.checked;
         saveSettings();
         if (badgeMap) {
@@ -613,7 +631,7 @@ const friendListAddon = () => {
     if (betterIconsCheckbox) {
       betterIconsCheckbox.checked = betterIcons;
       betterIconsCheckbox.setAttribute('data-v-730c0c40', '');
-      betterIconsCheckbox.addEventListener('change', function(e) {
+      betterIconsCheckbox.addEventListener('change', function () {
         betterIcons = this.checked;
         saveSettings();
         applyBetterIcons();
@@ -634,7 +652,7 @@ const friendListAddon = () => {
     if (lockUnfriendCheckbox) {
       lockUnfriendCheckbox.checked = lockUnfriend;
       lockUnfriendCheckbox.setAttribute('data-v-730c0c40', '');
-      lockUnfriendCheckbox.addEventListener('change', function(e) {
+      lockUnfriendCheckbox.addEventListener('change', function () {
         lockUnfriend = this.checked;
         saveSettings();
         applyLockUnfriend();
@@ -656,11 +674,7 @@ const friendListAddon = () => {
     spacer.style.cssText = 'height:12px;border-bottom:1px solid rgba(255,255,255,0.05);margin-bottom:8px;';
     toggleContainer.appendChild(spacer);
 
-    if (dndRow) {
-      dndRow.parentNode.insertBefore(toggleContainer, dndRow.nextSibling);
-    } else {
-      sidebarBottom.appendChild(toggleContainer);
-    }
+    dndRow.parentNode.insertBefore(toggleContainer, dndRow.nextSibling);
   }
 
   function updateToggleStates() {
@@ -732,101 +746,97 @@ const friendListAddon = () => {
     });
   }
 
-  function reorganizeFriends(badgeMap) {
+  // Runs `fn` with the item-level observer disconnected so our own DOM
+  // writes don't get picked up as "friends changed" and re-trigger us.
+  function withObserverPaused(fn) {
+    const wasObserving = !!observer;
+    if (observer) observer.disconnect();
+    try {
+      fn();
+    } finally {
+      if (wasObserving) setupObserver();
+    }
+  }
+
+  function reorganizeFriends(map) {
     if (isOrganizing) return;
     isOrganizing = true;
     try {
       const friendContainer = document.querySelector('.friends .list');
-      if (!friendContainer) {
-        isOrganizing = false;
-        return;
-      }
+      if (!friendContainer) return;
       let friendElements = friendContainer.querySelectorAll('.friend');
-
-      if (friendElements.length === 0) {
-        isOrganizing = false;
-        return;
-      }
+      if (friendElements.length === 0) return;
 
       if (!originalOrderSaved || originalFriendOrder.length !== friendElements.length) {
         saveOriginalOrder(friendElements);
       }
       if (!showRoleDividers) {
         restoreOriginalOrder();
-        isOrganizing = false;
         return;
       }
-      friendContainer.querySelectorAll('.role-divider').forEach(div => div.remove());
-      friendElements = friendContainer.querySelectorAll('.friend');
 
-      const roleGroups = new Map();
+      withObserverPaused(() => {
+        friendContainer.querySelectorAll('.role-divider').forEach(div => div.remove());
+        friendElements = friendContainer.querySelectorAll('.friend');
 
-      for (const role of roleOrder) {
-        roleGroups.set(role, { online: [], offline: [] });
-      }
-
-      if (!roleGroups.has('User')) {
-        roleGroups.set('User', { online: [], offline: [] });
-        if (!roleOrder.includes('User')) {
-          roleOrder.push('User');
+        const roleGroups = new Map();
+        for (const role of roleOrder) {
+          roleGroups.set(role, { online: [], offline: [] });
         }
-      }
+        if (!roleGroups.has('User')) {
+          roleGroups.set('User', { online: [], offline: [] });
+          if (!roleOrder.includes('User')) roleOrder.push('User');
+        }
 
-      friendElements.forEach(friendElement => {
-        const isOnline = isFriendOnline(friendElement);
-        const role = getFriendRole(friendElement, badgeMap);
+        friendElements.forEach(friendElement => {
+          const isOnline = isFriendOnline(friendElement);
+          const role = getFriendRole(friendElement, map);
 
-        let group = roleGroups.get(role);
-        if (!group) {
-          const roleName = role || 'User';
-          if (!roleGroups.has(roleName)) {
-            roleGroups.set(roleName, { online: [], offline: [] });
-            if (!roleOrder.includes(roleName)) {
-              roleOrder.push(roleName);
+          let group = roleGroups.get(role);
+          if (!group) {
+            const roleName = role || 'User';
+            if (!roleGroups.has(roleName)) {
+              roleGroups.set(roleName, { online: [], offline: [] });
+              if (!roleOrder.includes(roleName)) roleOrder.push(roleName);
             }
+            group = roleGroups.get(roleName);
           }
-          group = roleGroups.get(roleName);
+
+          if (isOnline) {
+            group.online.push(friendElement);
+          } else {
+            group.offline.push(friendElement);
+          }
+        });
+
+        for (const [, group] of roleGroups) {
+          group.online = sortFriendsByOnlineAndLevel(group.online);
+          group.offline = sortFriendsByOnlineAndLevel(group.offline);
         }
 
-        if (isOnline) {
-          group.online.push(friendElement);
-        } else {
-          group.offline.push(friendElement);
+        friendContainer.innerHTML = '';
+        let hasContent = false;
+        for (const role of roleOrder) {
+          const group = roleGroups.get(role);
+          if (!group || (group.online.length === 0 && group.offline.length === 0)) continue;
+          if (hasContent) {
+            const spacer = document.createElement('div');
+            spacer.setAttribute('data-v-6631cc61', '');
+            spacer.style.height = '2px';
+            friendContainer.appendChild(spacer);
+          }
+          const totalCount = group.online.length + group.offline.length;
+          friendContainer.appendChild(createDivider(role, totalCount, role));
+          group.online.forEach(friend => friendContainer.appendChild(friend));
+          group.offline.forEach(friend => friendContainer.appendChild(friend));
+          hasContent = true;
         }
       });
 
-      for (const [role, group] of roleGroups) {
-        group.online = sortFriendsByOnlineAndLevel(group.online);
-        group.offline = sortFriendsByOnlineAndLevel(group.offline);
-      }
-
-      friendContainer.innerHTML = '';
-      let hasContent = false;
-      for (const role of roleOrder) {
-        const group = roleGroups.get(role);
-        if (!group || (group.online.length === 0 && group.offline.length === 0)) continue;
-        if (hasContent) {
-          const spacer = document.createElement('div');
-          spacer.setAttribute('data-v-6631cc61', '');
-          spacer.style.height = '2px';
-          friendContainer.appendChild(spacer);
-        }
-        const totalCount = group.online.length + group.offline.length;
-        friendContainer.appendChild(createDivider(role, totalCount, role));
-        if (group.online.length > 0) {
-          group.online.forEach(friend => friendContainer.appendChild(friend));
-        }
-        if (group.offline.length > 0) {
-          group.offline.forEach(friend => friendContainer.appendChild(friend));
-        }
-        hasContent = true;
-      }
       if (blurInGame) applyInGameBlur();
-      setTimeout(() => {
-        applyStreamerMode();
-        applyBetterIcons();
-        applyLockUnfriend();
-      }, 50);
+      applyStreamerMode();
+      applyBetterIcons();
+      applyLockUnfriend();
     } catch (error) {
       // Silent fail
     } finally {
@@ -842,40 +852,42 @@ const friendListAddon = () => {
       let shouldReorganize = false;
       for (const mutation of mutations) {
         if (mutation.type === 'childList') {
-          if (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0) {
-            for (const node of mutation.addedNodes) {
-              if (node.nodeType === 1) {
-                if ((node.classList && node.classList.contains('friend')) ||
-                    (node.querySelector && node.querySelector('.friend'))) {
-                  shouldReorganize = true;
-                  break;
-                }
-              }
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType === 1 &&
+                ((node.classList && node.classList.contains('friend')) ||
+                 (node.querySelector && node.querySelector('.friend')))) {
+              shouldReorganize = true;
+              break;
             }
-            if (!shouldReorganize) {
-              for (const node of mutation.removedNodes) {
-                if (node.nodeType === 1) {
-                  if ((node.classList && node.classList.contains('friend')) ||
-                      (node.querySelector && node.querySelector('.friend'))) {
-                    shouldReorganize = true;
-                    break;
-                  }
-                }
+          }
+          if (!shouldReorganize) {
+            for (const node of mutation.removedNodes) {
+              if (node.nodeType === 1 &&
+                  ((node.classList && node.classList.contains('friend')) ||
+                   (node.querySelector && node.querySelector('.friend')))) {
+                shouldReorganize = true;
+                break;
               }
             }
           }
-        } else if (mutation.type === 'attributes' && mutation.target.classList &&
-                  mutation.target.classList.contains('friend') && mutation.attributeName === 'class') {
-          shouldReorganize = true;
+        } else if (mutation.type === 'attributes') {
+          // Catches status/online-dot class changes on children of a
+          // .friend element too, not just the .friend node itself, so
+          // online/away/busy/in-game changes are picked up live.
+          const target = mutation.target;
+          if (target.nodeType === 1 && target.closest && target.closest('.friend')) {
+            shouldReorganize = true;
+          }
         }
+        if (shouldReorganize) break;
       }
       if (shouldReorganize && badgeMap) {
-        clearTimeout(window._reorganizeTimeout);
-        window._reorganizeTimeout = setTimeout(() => {
+        clearTimeout(reorganizeTimeout);
+        reorganizeTimeout = setTimeout(() => {
           originalOrderSaved = false;
           originalFriendOrder = [];
           reorganizeFriends(badgeMap);
-        }, 300);
+        }, 250);
       }
     });
     observer.observe(friendContainer, {
@@ -886,30 +898,6 @@ const friendListAddon = () => {
     });
   }
 
-  function setupFriendListWatcher() {
-    if (friendListObserver) friendListObserver.disconnect();
-    friendListObserver = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        if (mutation.type === 'childList') {
-          for (const node of mutation.addedNodes) {
-            if (node.nodeType === 1) {
-              const friendContainer = node.querySelector ?
-                (node.querySelector('.friends .list') ||
-                 (node.classList && node.classList.contains('friends') ? node.querySelector('.list') : null)) :
-                null;
-              if (friendContainer || (node.classList && node.classList.contains('list') &&
-                node.closest && node.closest('.friends'))) {
-                setTimeout(() => initializeFriendList(), 100);
-                break;
-              }
-            }
-          }
-        }
-      }
-    });
-    friendListObserver.observe(document.body, { childList: true, subtree: true });
-  }
-
   function initializeFriendList() {
     const friendContainer = document.querySelector('.friends .list');
     if (!friendContainer) return;
@@ -918,11 +906,11 @@ const friendListAddon = () => {
     changeAddFriendText();
     createToggles();
     const friends = friendContainer.querySelectorAll('.friend');
-    if (friends.length > 0) {
+    if (friends.length > 0 && badgeMap) {
       saveOriginalOrder(friends);
       reorganizeFriends(badgeMap);
-      setupObserver();
     }
+    setupObserver();
     setTimeout(() => {
       applyStreamerMode();
       applyBetterIcons();
@@ -930,45 +918,84 @@ const friendListAddon = () => {
     }, 100);
   }
 
+  // Single entry point used by both the polling loop and the body-level
+  // watcher. Reinitializes whenever the `.friends .list` DOM node is a
+  // different node than last time (covers SPA route changes and Vue
+  // re-renders that swap the container out from under us), and otherwise
+  // just makes sure the toggles/observer are still attached.
+  function ensureInitialized() {
+    const listEl = document.querySelector('.friends .list');
+    if (!listEl) return;
+
+    if (listEl !== currentListEl) {
+      currentListEl = listEl;
+      initializeFriendList();
+      return;
+    }
+
+    if (!document.querySelector('.toggle-container')) {
+      createToggles();
+    }
+    if (!observer) {
+      setupObserver();
+    }
+    if (badgeMap && listEl.querySelectorAll('.friend').length > 0 && !listEl.querySelector('.role-divider') && showRoleDividers) {
+      reorganizeFriends(badgeMap);
+    }
+  }
+
   function waitForFriendList() {
     if (document.querySelector('.friends .list')) {
-      if (!isInitialized) {
-        initializeFriendList();
-        isInitialized = true;
-      }
+      ensureInitialized();
       return;
     }
     const checkInterval = setInterval(() => {
       if (document.querySelector('.friends .list')) {
         clearInterval(checkInterval);
-        if (!isInitialized) {
-          initializeFriendList();
-          isInitialized = true;
-        }
+        ensureInitialized();
       }
     }, 100);
-    setTimeout(() => {
-      clearInterval(checkInterval);
-      if (!isInitialized && document.querySelector('.friends .list')) {
-        initializeFriendList();
-        isInitialized = true;
+    setTimeout(() => clearInterval(checkInterval), 10000);
+  }
+
+  function setupFriendListWatcher() {
+    if (friendListObserver) friendListObserver.disconnect();
+    friendListObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type !== 'childList') continue;
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType !== 1) continue;
+          const found =
+            (node.classList && node.classList.contains('friends') && node.querySelector('.list')) ||
+            (node.querySelector && node.querySelector('.friends .list'));
+          if (found) {
+            setTimeout(() => waitForFriendList(), 100);
+            return;
+          }
+        }
       }
-    }, 10000);
+    });
+    friendListObserver.observe(document.body, { childList: true, subtree: true });
   }
 
   async function init() {
     loadSettings();
     if (!badgeMap) {
+      badgeMapFetchInFlight = true;
       badgeMap = await getBadgeMap();
-      if (!badgeMap) return;
+      badgeMapFetchInFlight = false;
+      if (!badgeMap) {
+        scheduleBadgeMapRetry();
+      }
     }
+
     setupFriendListWatcher();
     waitForFriendList();
+
     let lastUrl = location.href;
     const urlObserver = new MutationObserver(() => {
       if (location.href !== lastUrl) {
         lastUrl = location.href;
-        isInitialized = false;
         setTimeout(() => waitForFriendList(), 500);
       }
     });

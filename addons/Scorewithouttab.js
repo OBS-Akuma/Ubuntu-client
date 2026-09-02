@@ -25,44 +25,51 @@ const scoreDisplayAddon = () => {
     }
   }
 
+  // Exclude any KD column another addon may have inserted into the same
+  // row, so index-based lookups here stay locked to kills/deaths/score.
+  const PLAYER_VALUE_SELECTOR = '.player-value:not(.kd-player-value)';
+
+  // The gold/silver/bronze key color is a RANK indicator (1st/2nd/3rd
+  // place), not a "this is you" indicator — don't use it as the primary
+  // self-detection signal. .nickname.bolder is the reliable marker.
+  function isSelfContainer(container) {
+    const nickname = container.querySelector('.nickname');
+    if (nickname && nickname.classList.contains('bolder')) {
+      return true;
+    }
+    return false;
+  }
+
+  function getScoreFromContainer(container) {
+    const scoreElements = container.querySelectorAll(PLAYER_VALUE_SELECTOR);
+    if (scoreElements.length >= 3) {
+      return scoreElements[2].textContent.trim();
+    }
+    return null;
+  }
+
   function getPlayerScore() {
     // Try HUD first
-    const keyElement = document.querySelector('.key[style*="color: rgb(255, 185, 20);"]');
-    if (keyElement) {
-      const playerContainer = keyElement.closest('.player-cont');
-      if (playerContainer) {
-        const scoreElements = playerContainer.querySelectorAll('.player-value');
-        if (scoreElements.length >= 3) {
-          return scoreElements[2].textContent.trim();
-        }
+    const hudPlayerConts = document.querySelectorAll('.player-cont');
+    for (const container of hudPlayerConts) {
+      if (isSelfContainer(container)) {
+        const score = getScoreFromContainer(container);
+        if (score !== null) return score;
       }
     }
 
-    // Try team info
+    // Try team info specifically (in case selector scope differs there)
     const teamInfo = document.querySelector('.tab-team-info');
     if (teamInfo) {
       const playerContainers = teamInfo.querySelectorAll('.player-cont');
       for (const container of playerContainers) {
-        const keyElement = container.querySelector('.key');
-        if (keyElement) {
-          const style = keyElement.getAttribute('style') || '';
-          if (style.includes('color: rgb(255, 185, 20)') || 
-              style.includes('color: #ffb914')) {
-            const scoreElements = container.querySelectorAll('.player-value');
-            if (scoreElements.length >= 3) {
-              return scoreElements[2].textContent.trim();
-            }
-          }
-        }
-        const nickname = container.querySelector('.nickname');
-        if (nickname && nickname.classList.contains('bolder')) {
-          const scoreElements = container.querySelectorAll('.player-value');
-          if (scoreElements.length >= 3) {
-            return scoreElements[2].textContent.trim();
-          }
+        if (isSelfContainer(container)) {
+          const score = getScoreFromContainer(container);
+          if (score !== null) return score;
         }
       }
     }
+
     return null;
   }
 

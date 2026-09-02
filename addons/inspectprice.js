@@ -1,10 +1,12 @@
 /**
- * Displays item values and rank in the inspect modal by fetching price data
- * from a Google Sheets API and rank data from the rank API.
+ * Displays item values, rank, and date added in the inspect modal by fetching
+ * price data from a Google Sheets API, rank data from the rank API, and
+ * date-added data from the Kirka skin-art API.
  * 
  * - Fetches skin prices from Google Sheets
  * - Fetches skin rank from rank API
- * - Shows item value and rank in the inspect modal
+ * - Fetches skin date-added from Kirka skin-art API
+ * - Shows item value, rank, and date added in the inspect modal
  * - Updates automatically when switching items
  * - Persists through modal reopenings
  */
@@ -12,8 +14,10 @@ const inspectPriceAddon = () => {
   // Configuration
   const PRICE_SHEET_URL = "https://opensheet.elk.sh/1pxMSoaSo8FYv-OIJ26HpSj8EDy7EDRmatHyQW24o6E4/Sorted+View";
   const RANK_API_URL = "https://rank.daymian.xyz/api/skins/";
+  const DATE_API_URL = "https://api2.kirka.io/api/skin-art";
   
   let priceMap = null;
+  let dateMap = null;
   let observer = null;
   let intervalId = null;
   let rankCache = new Map();
@@ -58,6 +62,14 @@ const inspectPriceAddon = () => {
     return colors[tier] || null;
   }
   
+  // Format a timestamp into a short readable date
+  function formatDateAdded(timestampMs) {
+    if (!timestampMs) return null;
+    const d = new Date(timestampMs);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  }
+  
   // Load price data
   async function loadPriceData() {
     if (priceMap) return true;
@@ -82,9 +94,38 @@ const inspectPriceAddon = () => {
     }
   }
   
+  // Load date-added data
+  async function loadDateData() {
+    if (dateMap) return true;
+    
+    try {
+      const response = await fetch(DATE_API_URL);
+      const rows = await response.json();
+      
+      dateMap = new Map();
+      for (const row of rows) {
+        if (!row || !row["n"]) continue;
+        const name = row["n"].trim().toLowerCase();
+        const timestamp = row["v"];
+        if (timestamp && !dateMap.has(name)) {
+          dateMap.set(name, timestamp);
+        }
+      }
+      
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+  
   function getSkinValue(name) {
     if (!priceMap) return 0;
     return priceMap.get(name.trim().toLowerCase()) || 0;
+  }
+  
+  function getSkinDateAdded(name) {
+    if (!dateMap) return null;
+    return dateMap.get(name.trim().toLowerCase()) || null;
   }
   
   // Fetch rank data for a skin
@@ -128,6 +169,29 @@ const inspectPriceAddon = () => {
     }
   }
   
+  function makeBadgeElement(className, top) {
+    const el = document.createElement("div");
+    el.className = `owned ${className}`;
+    el.setAttribute("data-v-391bc0ba", "");
+    el.setAttribute("data-v-a1eaaeac", "");
+    
+    el.style.cssText = `
+      right: 1rem;
+      top: ${top};
+      height: auto;
+      display: flex;
+      padding: 0 .7rem;
+      border-radius: 1rem;
+      background: rgba(0,0,0,.25);
+      font-weight: 600;
+      color: #fff;
+      align-items: center;
+      position: absolute;
+      text-shadow: -1px -1px 0 #0f0f0f, 1px -1px 0 #0f0f0f, -1px 1px 0 #0f0f0f, 1px 1px 0 #0f0f0f, 0 0.13rem 1px rgba(0,0,0,.486);
+    `;
+    return el;
+  }
+  
   async function addValueToInspect() {
     const nameEl = document.querySelector("#inspect-modal .name");
     if (!nameEl) return;
@@ -136,6 +200,8 @@ const inspectPriceAddon = () => {
     if (existingValue) existingValue.remove();
     const existingRank = nameEl.querySelector(".inspect-rank");
     if (existingRank) existingRank.remove();
+    const existingDate = nameEl.querySelector(".inspect-date");
+    if (existingDate) existingDate.remove();
 
     const ownedEl = nameEl.querySelector(".owned");
     if (!ownedEl) return;
@@ -149,53 +215,29 @@ const inspectPriceAddon = () => {
     const value = getSkinValue(name);
     
     // Create value element
-    const valueEl = document.createElement("div");
-    valueEl.className = "owned inspect-value";
-    valueEl.setAttribute("data-v-391bc0ba", "");
-    valueEl.setAttribute("data-v-a1eaaeac", "");
-    
-    valueEl.style.cssText = `
-      right: 1rem;
-      top: 5.5rem;
-      height: auto;
-      display: flex;
-      padding: 0 .7rem;
-      border-radius: 1rem;
-      background: rgba(0,0,0,.25);
-      font-weight: 600;
-      color: #fff;
-      align-items: center;
-      position: absolute;
-      text-shadow: -1px -1px 0 #0f0f0f, 1px -1px 0 #0f0f0f, -1px 1px 0 #0f0f0f, 1px 1px 0 #0f0f0f, 0 0.13rem 1px rgba(0,0,0,.486);
-    `;
-    
+    const valueEl = makeBadgeElement("inspect-value", "5.5rem");
     const formattedValue = Math.round(value).toLocaleString();
     valueEl.textContent = `Value: ${formattedValue}`;
-    
     ownedEl.after(valueEl);
+    
+    // Display date added
+    const timestamp = getSkinDateAdded(name);
+    const formattedDate = formatDateAdded(timestamp);
+    
+    const dateEl = makeBadgeElement("inspect-date", "8.5rem");
+    if (formattedDate) {
+      dateEl.textContent = `${formattedDate}`;
+    } else {
+      dateEl.textContent = 'N/A';
+      dateEl.style.color = '#888';
+    }
+    
+    valueEl.after(dateEl);
     
     // Fetch and display rank
     const rankData = await fetchSkinRank(name);
     
-    const rankEl = document.createElement("div");
-    rankEl.className = "owned inspect-rank";
-    rankEl.setAttribute("data-v-391bc0ba", "");
-    rankEl.setAttribute("data-v-a1eaaeac", "");
-    
-    rankEl.style.cssText = `
-      right: 1rem;
-      top: 8.5rem;
-      height: auto;
-      display: flex;
-      padding: 0 .7rem;
-      border-radius: 1rem;
-      background: rgba(0,0,0,.25);
-      font-weight: 600;
-      color: #fff;
-      align-items: center;
-      position: absolute;
-      text-shadow: -1px -1px 0 #0f0f0f, 1px -1px 0 #0f0f0f, -1px 1px 0 #0f0f0f, 1px 1px 0 #0f0f0f, 0 0.13rem 1px rgba(0,0,0,.486);
-    `;
+    const rankEl = makeBadgeElement("inspect-rank", "11.5rem");
     
     if (rankData && rankData.rank) {
       const tierColor = getTierColor(rankData.rank);
@@ -214,7 +256,7 @@ const inspectPriceAddon = () => {
       rankEl.style.color = '#888';
     }
     
-    valueEl.after(rankEl);
+    dateEl.after(rankEl);
   }
 
   function checkAndAddValue() {
@@ -293,12 +335,12 @@ const inspectPriceAddon = () => {
       clearInterval(intervalId);
       intervalId = null;
     }
-    document.querySelectorAll(".inspect-value, .inspect-rank").forEach(el => el.remove());
+    document.querySelectorAll(".inspect-value, .inspect-rank, .inspect-date").forEach(el => el.remove());
   }
 
   async function init() {
-    const loaded = await loadPriceData();
-    if (loaded) {
+    const [priceLoaded] = await Promise.all([loadPriceData(), loadDateData()]);
+    if (priceLoaded) {
       setupObserver();
       
       window.addValueToInspect = addValueToInspect;
