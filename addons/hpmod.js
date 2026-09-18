@@ -143,7 +143,7 @@ void main() {
         }
     };
 
-    console.log("%cHealth Bar Mod by %c@pseudoical", "color: yellow;", "color: lime;");
+    console.log("uwu");
 };
 
 // Export for use in main file
