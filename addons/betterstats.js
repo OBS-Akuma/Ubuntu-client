@@ -25,7 +25,7 @@ const betterStatsAddon = () => {
   // ---- Fetch inventory ----
   async function fetchInventory(userId) {
     if (!userId) return null;
-    
+  
     try {
       const response = await fetch('https://www.smudgy.store/api/getinventory', {
         method: 'POST',

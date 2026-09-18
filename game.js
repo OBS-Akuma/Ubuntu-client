@@ -19,6 +19,27 @@ const { scoreDisplayAddon } = require('./addons/Scorewithouttab.js');
 const { customReqScripts } = require('./addons/marketusernames.js');
 const { kdDisplayAddon } = require('./addons/kdtabdisplay.js');
 const { roomPresetsAddon } = require('./addons/serverpresets.js');
+const { healthBarAddon } = require('./addons/hpmod.js');
+
+console.log('ADDON CHECK:', {
+  betterStatsAddon:   typeof betterStatsAddon,
+  overlayColorAddon:  typeof overlayColorAddon,
+  socialCardsAddon:   typeof socialCardsAddon,
+  inspectPriceAddon:  typeof inspectPriceAddon,
+  twitchNewsAddon:    typeof twitchNewsAddon,
+  healthBarAddon:     typeof healthBarAddon,
+  friendListAddon:    typeof friendListAddon,
+  friendSearchAddon:  typeof friendSearchAddon,
+  roleDisplayAddon:   typeof roleDisplayAddon,
+  notificationsAddon: typeof notificationsAddon,
+  friendStylerAddon:  typeof friendStylerAddon,
+  devMenuAddon:       typeof devMenuAddon,
+  copyUtilsAddon:     typeof copyUtilsAddon,
+  customReqScripts:   typeof customReqScripts,
+  kdDisplayAddon:     typeof kdDisplayAddon,
+  roomPresetsAddon:   typeof roomPresetsAddon,
+  scoreDisplayAddon:  typeof scoreDisplayAddon,
+});
 
 let discordRPC = null;
 let gameWindow = null;
@@ -1288,7 +1309,11 @@ function createGameWindow(settings = {}) {
     })();
   `;
 
- function safeCall(fn, label) {
+  function safeCall(fn, label) {
+    if (typeof fn !== 'function') {
+      console.error(`[AddonError] ${label} is ${typeof fn} — check its require/export.`);
+      return `console.error('[AddonError] ${label} is missing');`;
+    }
     return `
       try {
         (${fn.toString()})();
@@ -1299,26 +1324,27 @@ function createGameWindow(settings = {}) {
   }
 
   const combinedScript = injectionScript + '\n' +
-                      gunTrackerScript + '\n' +
-                      usernameHidingScript + '\n' +
-                      endGameMessageScript + '\n' +
-                      badgeScript + '\n' +
-                      safeCall(betterStatsAddon, 'betterStatsAddon') + '\n' +
-                      safeCall(overlayColorAddon, 'overlayColorAddon') + '\n' +
-                      safeCall(socialCardsAddon, 'socialCardsAddon') + '\n' +
-                      safeCall(inspectPriceAddon, 'inspectPriceAddon') + '\n' +
-                      safeCall(twitchNewsAddon, 'twitchNewsAddon') + '\n' +
-                      safeCall(friendListAddon, 'friendListAddon') + '\n' +
-                      safeCall(friendSearchAddon, 'friendSearchAddon') + '\n' +
-                      safeCall(roleDisplayAddon, 'roleDisplayAddon') + '\n' +
-                      safeCall(notificationsAddon, 'notificationsAddon') + '\n' +
-                      safeCall(friendStylerAddon, 'friendStylerAddon') + '\n' +
-                      safeCall(devMenuAddon, 'devMenuAddon') + '\n' +
-                      safeCall(copyUtilsAddon, 'copyUtilsAddon') + '\n' +
-                      safeCall(customReqScripts, 'customReqScripts') + '\n' +
-                      safeCall(kdDisplayAddon, 'kdDisplayAddon') + '\n' +
-                      safeCall(roomPresetsAddon, 'roomPresetsAddon') + '\n' +
-                      safeCall(scoreDisplayAddon, 'scoreDisplayAddon');
+                    gunTrackerScript + '\n' +
+                    usernameHidingScript + '\n' +
+                    endGameMessageScript + '\n' +
+                    badgeScript + '\n' +
+                    safeCall(betterStatsAddon, 'betterStatsAddon') + '\n' +
+                    safeCall(overlayColorAddon, 'overlayColorAddon') + '\n' +
+                    safeCall(socialCardsAddon, 'socialCardsAddon') + '\n' +
+                    safeCall(inspectPriceAddon, 'inspectPriceAddon') + '\n' +
+                    safeCall(twitchNewsAddon, 'twitchNewsAddon') + '\n' +
+                    safeCall(healthBarAddon, 'healthBarAddon') + '\n' +
+                    safeCall(friendListAddon, 'friendListAddon') + '\n' +
+                    safeCall(friendSearchAddon, 'friendSearchAddon') + '\n' +
+                    safeCall(roleDisplayAddon, 'roleDisplayAddon') + '\n' +
+                    safeCall(notificationsAddon, 'notificationsAddon') + '\n' +
+                    safeCall(friendStylerAddon, 'friendStylerAddon') + '\n' +
+                    safeCall(devMenuAddon, 'devMenuAddon') + '\n' +
+                    safeCall(copyUtilsAddon, 'copyUtilsAddon') + '\n' +
+                    safeCall(customReqScripts, 'customReqScripts') + '\n' +
+                    safeCall(kdDisplayAddon, 'kdDisplayAddon') + '\n' +
+                    safeCall(roomPresetsAddon, 'roomPresetsAddon') + '\n' +
+                    safeCall(scoreDisplayAddon, 'scoreDisplayAddon');
 
 
   const settingsPath = path.join(ubuntuFolder, 'settings.txt');
@@ -1442,24 +1468,18 @@ function createGameWindow(settings = {}) {
   });
 
 
-gameWindow.webContents.on('did-finish-load', () => {
+  gameWindow.webContents.on('did-finish-load', () => {
     console.log(' Game loaded, injecting scripts');
-    
+
     const currentUrl = gameWindow.webContents.getURL();
     applyDiscordPresence(currentUrl);
 
-    // Execute the main combined script
     gameWindow.webContents.executeJavaScript(combinedScript)
-        .then(() => {
-            console.log(' Scripts executed successfully');
-            // Run the test addon separately
-            return gameWindow.webContents.executeJavaScript('(' + greenSquareAddon.toString() + ')();');
-        })
-        .then(() => {
-            console.log('[Test Addon] Green square loaded successfully!');
-        })
-        .catch(err => console.error(' Script execution failed:', err));
-});
+      .then(() => {
+        console.log(' Scripts executed successfully');
+      })
+      .catch(err => console.error(' Script execution failed:', err));
+  });
 
 
   gameWindow.webContents.setUserAgent(

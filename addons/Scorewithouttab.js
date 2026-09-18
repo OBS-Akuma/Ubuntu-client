@@ -9,9 +9,14 @@ const scoreDisplayAddon = () => {
     scoreDiv.setAttribute('data-v-505b899c', '');
     scoreDiv.className = 'score bg text-1';
     scoreDiv.id = 'scoreelement';
+    // display:inline-flex + align-items keeps the icon and number on one
+    // baseline-aligned line without relying on the parent's own flex
+    // context, which is what was squeezing the icon before.
+    scoreDiv.style.display = 'inline-flex';
+    scoreDiv.style.alignItems = 'center';
     scoreDiv.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="16" height="16" style="display:inline-block;vertical-align:middle;margin-right:4px;">
-        <polygon points="50,5 61,38 95,38 67,58 78,92 50,72 22,92 33,58 5,38 39,38" fill="#f3ba00ff"/>
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" width="16" height="16" style="display:inline-block;flex:0 0 16px;width:16px;height:16px;margin-right:4px;">
+        <path d="M12.44 9.74a.825.825 0 0 0-.24.727l.667 3.69a.81.81 0 0 1-.338.81.826.826 0 0 1-.877.06L8.33 13.296a.847.847 0 0 0-.375-.098h-.203a.609.609 0 0 0-.203.067l-3.322 1.741c-.165.082-.35.112-.533.082a.834.834 0 0 1-.667-.953l.667-3.69a.84.84 0 0 0-.24-.734L.748 7.085a.81.81 0 0 1-.202-.848.842.842 0 0 1 .667-.562l3.727-.54a.834.834 0 0 0 .66-.457L7.242 1.31a.78.78 0 0 1 .15-.203l.067-.052a.503.503 0 0 1 .12-.097l.083-.03.127-.053h.316c.282.03.53.198.66.45l1.664 3.353c.12.245.353.415.623.456l3.727.541a.85.85 0 0 1 .683.563c.098.3.013.63-.218.847L12.44 9.74z" fill="#FFB914"/>
       </svg>
       <span id="scorevalue">0</span>
     `;

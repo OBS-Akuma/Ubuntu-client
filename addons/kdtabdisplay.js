@@ -1,13 +1,15 @@
 /**
  * Adds a KD (kills/deaths) column to the "Players" tab-info list,
  * positioned before kills, and keeps it live-updated.
+ *
+ * Supports both layouts:
+ *  - Solo/FFA (.tab-info): players-wrap > .list (header) + .player-list > .player-cont*
+ *  - Team mode (.tab-team-info): players-wrap > .players-cont > .player-list > (.list header + .player-cont*) x2 (red/blue)
  */
 const kdDisplayAddon = () => {
   'use strict';
 
-  const HEADER_SELECTOR = '.tab-info .players-wrap > .list';
-  const PLAYER_LIST_SELECTOR = '.tab-info .players-wrap > .player-list';
-  const PLAYER_ROW_SELECTOR = '.player-cont';
+  const WRAP_SELECTOR = '.tab-info .players-wrap, .tab-team-info .players-wrap';
 
   function zeroSpacing(el) {
     if (!el) return;
@@ -18,17 +20,28 @@ const kdDisplayAddon = () => {
     el.style.padding = '0';
   }
 
-  function ensureHeaderKD() {
-    const headerRow = document.querySelector(HEADER_SELECTOR);
+  function parseNumber(text) {
+    const n = parseFloat((text || '').trim());
+    return isNaN(n) ? 0 : n;
+  }
+
+  function computeKD(kills, deaths) {
+    if (deaths === 0) {
+      return kills > 0 ? kills.toFixed(2) : '0.00';
+    }
+    return (kills / deaths).toFixed(2);
+  }
+
+  function ensureHeaderKD(headerRow) {
     if (!headerRow) return;
 
     zeroSpacing(headerRow);
 
-    const values = headerRow.querySelectorAll('.list-value');
+    const values = headerRow.querySelectorAll('.list-value:not(.kd-header-value)');
     values.forEach(zeroSpacing);
 
-    if (headerRow.querySelector('.kd-header-value')) {
-      const existing = headerRow.querySelector('.kd-header-value');
+    const existing = headerRow.querySelector('.kd-header-value');
+    if (existing) {
       existing.style.marginRight = '16px';
       existing.style.transform = 'translateX(-8px)';
       return;
@@ -48,18 +61,6 @@ const kdDisplayAddon = () => {
     kdHeader.style.transform = 'translateX(-8px)';
 
     values[0].insertAdjacentElement('beforebegin', kdHeader);
-  }
-
-  function parseNumber(text) {
-    const n = parseFloat((text || '').trim());
-    return isNaN(n) ? 0 : n;
-  }
-
-  function computeKD(kills, deaths) {
-    if (deaths === 0) {
-      return kills > 0 ? kills.toFixed(2) : '0.00';
-    }
-    return (kills / deaths).toFixed(2);
   }
 
   function updatePlayerRow(playerCont) {
@@ -97,14 +98,41 @@ const kdDisplayAddon = () => {
     }
   }
 
+  /**
+   * Finds each "group" (a header .list + its associated .player-cont rows)
+   * across both solo and team-mode layouts.
+   */
+  function getGroups() {
+    const groups = [];
+
+    document.querySelectorAll(WRAP_SELECTOR).forEach((wrap) => {
+      // Solo layout: header is a direct child of players-wrap
+      const directHeader = wrap.querySelector(':scope > .list');
+      if (directHeader) {
+        const playerList = wrap.querySelector(':scope > .player-list') || wrap;
+        const rows = playerList.querySelectorAll('.player-cont');
+        groups.push({ header: directHeader, rows });
+        return;
+      }
+
+      // Team layout: each .player-list (left/right) has its own nested header
+      wrap.querySelectorAll('.player-list').forEach((playerList) => {
+        const header = playerList.querySelector(':scope > .list');
+        if (!header) return;
+        const rows = playerList.querySelectorAll(':scope > .player-cont');
+        groups.push({ header, rows });
+      });
+    });
+
+    return groups;
+  }
+
   function updateAllRows() {
-    const playerList = document.querySelector(PLAYER_LIST_SELECTOR);
-    if (!playerList) return;
-
-    ensureHeaderKD();
-
-    const rows = playerList.querySelectorAll(PLAYER_ROW_SELECTOR);
-    rows.forEach(updatePlayerRow);
+    const groups = getGroups();
+    groups.forEach(({ header, rows }) => {
+      ensureHeaderKD(header);
+      rows.forEach(updatePlayerRow);
+    });
   }
 
   // Initial setup

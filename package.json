@@ -4,9 +4,10 @@
   "description": "The Electron client for Kirka.io that i never made but always wanted to.",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+      "start": "electron .",
+      "pack": "electron-builder --dir",
+      "dist": "electron-builder",
+      "build": "electron-builder"
   },
   "author": "Akuma",
   "license": "ISC",
