@@ -25,5 +25,11 @@
   },
   "VITA": {
     "UV": "https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/VITA_UV.png"
+  },
+  "AR9": {
+    "UV": "https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/AR9_UV.png"
+  },
+  "TOMAHAWK": {
+    "UV": "https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/TOMAHAWK_UV.png"
   }
 }
