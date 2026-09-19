@@ -1,15 +1,19 @@
 /**
- * Displays item values, rank, date added, owner counts, obtainable-by info, and color swatches
- * in the inspect modal by fetching price data from a Google Sheets API, rank data from the
- * rank API, date-added data from the Kirka skin-art API, and color/owned data from the
- * Kirka wmnwWNMW API.
+ * Displays item values, rank, date added, owner counts, obtainable-by info, Fate value,
+ * Bros price, and color swatches in the inspect modal by fetching price data from a
+ * Google Sheets API, rank data from the rank API, date-added data from the Kirka
+ * skin-art API, color/owned data from the Kirka wmnwWNMW API, Fate values from a
+ * second Google Sheets API, and Bros prices from a third Google Sheets API.
  * 
  * - Fetches skin prices from Google Sheets
  * - Fetches skin rank from rank API
  * - Fetches skin date-added from Kirka skin-art API
  * - Fetches skin colors and owned counts from Kirka wmnwWNMW API
+ * - Fetches Fate values from a Google Sheets API
+ * - Fetches Bros prices from a Google Sheets API
  * - Shows item value, rank, date added, color swatches, and green owned count in the inspect modal
  * - Shows "Obtainable By" badge at the bottom-left of the card
+ * - Shows Fate and Bros badges below the Bolt value
  * - Updates automatically when switching items
  * - Persists through modal reopenings
  * - Call window.__inspectPriceAddon.stop() to unload
@@ -20,12 +24,14 @@ const inspectPriceAddon = () => {
   const RANK_API_URL = "https://rank.daymian.xyz/api/skins/";
   const DATE_API_URL = "https://api2.kirka.io/api/skin-art";
   const COLOR_API_URL = "https://api2.kirka.io/api/wmnwWNMW";
+  const FATE_SHEET_URL = "https://opensheet.elk.sh/19UpuXlaSltQlAa8rLDn2Na3lAB9ySdWDy_8vu4nOCYQ/1";
+  const BROS_SHEET_URL = "https://opensheet.elk.sh/1tzHjKpu2gYlHoCePjp6bFbKBGvZpwDjiRzT9ZUfNwbY/4";
 
   // ===== CLEANUP OLD RUN =====
   if (window.__inspectPriceAddon) {
     window.__inspectPriceAddon.observer?.disconnect();
     if (window.__inspectPriceAddon.intervalId) clearInterval(window.__inspectPriceAddon.intervalId);
-    document.querySelectorAll(".inspect-value, .inspect-rank, .inspect-date, .inspect-colors, .inspect-owned, .obtainable-by-badge")
+    document.querySelectorAll(".inspect-value, .inspect-rank, .inspect-date, .inspect-colors, .inspect-owned, .inspect-fate, .inspect-bros, .obtainable-by-badge")
       .forEach(el => el.remove());
     document.querySelectorAll("#inspect-modal .name .owned[data-owned-modified]").forEach(el => {
       if (el.dataset.originalText) el.textContent = el.dataset.originalText;
@@ -41,6 +47,8 @@ const inspectPriceAddon = () => {
     colorMap: null,
     ownedMap: null,
     obtainMap: null,
+    fateMap: null,
+    brosMap: null,
     observer: null,
     intervalId: null,
     rankCache: new Map(),
@@ -140,6 +148,38 @@ const inspectPriceAddon = () => {
     } catch { return false; }
   }
 
+  // Fate: uses "Name" and "Base Value" columns
+  async function loadFateData() {
+    if (state.fateMap) return true;
+    try {
+      const rows = await (await fetch(FATE_SHEET_URL)).json();
+      state.fateMap = new Map();
+      for (const row of rows) {
+        if (!row || !row["Name"]) continue;
+        const name = String(row["Name"]).trim().toLowerCase();
+        const value = parseValue(row["Base Value"]);
+        if (value > 0 && !state.fateMap.has(name)) state.fateMap.set(name, value);
+      }
+      return true;
+    } catch { return false; }
+  }
+
+  // Bros: uses "Skin Name" and "Price" columns
+  async function loadBrosData() {
+    if (state.brosMap) return true;
+    try {
+      const rows = await (await fetch(BROS_SHEET_URL)).json();
+      state.brosMap = new Map();
+      for (const row of rows) {
+        if (!row || !row["Skin Name"]) continue;
+        const name = String(row["Skin Name"]).trim().toLowerCase();
+        const value = parseValue(row["Price"]);
+        if (value > 0 && !state.brosMap.has(name)) state.brosMap.set(name, value);
+      }
+      return true;
+    } catch { return false; }
+  }
+
   // ===== LOOKUPS =====
   function getSkinValue(name) {
     return state.priceMap?.get(name.trim().toLowerCase()) || 0;
@@ -155,6 +195,12 @@ const inspectPriceAddon = () => {
   }
   function getSkinObtainable(name) {
     return state.obtainMap?.get(name.trim().toLowerCase()) || null;
+  }
+  function getSkinFate(name) {
+    return state.fateMap?.get(name.trim().toLowerCase()) || 0;
+  }
+  function getSkinBros(name) {
+    return state.brosMap?.get(name.trim().toLowerCase()) || 0;
   }
 
   async function fetchSkinRank(skinName) {
@@ -262,7 +308,7 @@ const inspectPriceAddon = () => {
     const nameEl = document.querySelector("#inspect-modal .name");
     if (!nameEl) return;
 
-    nameEl.querySelectorAll(".inspect-value, .inspect-rank, .inspect-date, .inspect-colors, .inspect-owned")
+    nameEl.querySelectorAll(".inspect-value, .inspect-rank, .inspect-date, .inspect-colors, .inspect-owned, .inspect-fate, .inspect-bros")
       .forEach(el => el.remove());
 
     const ownedEl = nameEl.querySelector(".owned");
@@ -299,14 +345,28 @@ const inspectPriceAddon = () => {
     }
 
     const badges = [];
-    let nextTop = 5.5;
 
     const value = getSkinValue(name);
     if (value > 0) {
       const valueEl = makeOwnedBadge("inspect-value");
       valueEl.textContent = `Bolt: ${Math.round(value).toLocaleString()}`;
       badges.push(valueEl);
-      nextTop += 3;
+    }
+
+    // Fate badge directly below Bolt
+    const fateValue = getSkinFate(name);
+    if (fateValue > 0) {
+      const fateEl = makeOwnedBadge("inspect-fate");
+      fateEl.textContent = `Fate: ${Math.round(fateValue).toLocaleString()}`;
+      badges.push(fateEl);
+    }
+
+    // Bros badge directly below Fate
+    const brosValue = getSkinBros(name);
+    if (brosValue > 0) {
+      const brosEl = makeOwnedBadge("inspect-bros");
+      brosEl.textContent = `Bros: ${Math.round(brosValue).toLocaleString()}`;
+      badges.push(brosEl);
     }
 
     const formattedDate = formatDateAdded(getSkinDateAdded(name));
@@ -314,7 +374,6 @@ const inspectPriceAddon = () => {
       const dateEl = makeOwnedBadge("inspect-date");
       dateEl.textContent = formattedDate;
       badges.push(dateEl);
-      nextTop += 3;
     }
 
     const rankData = await fetchSkinRank(name);
@@ -328,7 +387,6 @@ const inspectPriceAddon = () => {
       rankEl.appendChild(txt);
       rankEl.appendChild(span);
       badges.push(rankEl);
-      nextTop += 3;
     }
 
     const colorBar = makeColorBar(getSkinColors(name));
@@ -432,7 +490,7 @@ const inspectPriceAddon = () => {
     state.observer?.disconnect();
     state.observer = null;
     if (state.intervalId) { clearInterval(state.intervalId); state.intervalId = null; }
-    document.querySelectorAll(".inspect-value, .inspect-rank, .inspect-date, .inspect-colors, .inspect-owned, .obtainable-by-badge")
+    document.querySelectorAll(".inspect-value, .inspect-rank, .inspect-date, .inspect-colors, .inspect-owned, .inspect-fate, .inspect-bros, .obtainable-by-badge")
       .forEach(el => el.remove());
     document.querySelectorAll("#inspect-modal .name .owned[data-owned-modified]").forEach(el => {
       if (el.dataset.originalText) el.textContent = el.dataset.originalText;
@@ -445,8 +503,14 @@ const inspectPriceAddon = () => {
 
   // ===== INIT =====
   async function init() {
-    await Promise.all([loadPriceData(), loadDateData(), loadColorData()]);
-    console.log(`[inspect-addon] prices: ${state.priceMap?.size ?? 0}, dates: ${state.dateMap?.size ?? 0}, colors: ${state.colorMap?.size ?? 0}, owned: ${state.ownedMap?.size ?? 0}, obtainable: ${state.obtainMap?.size ?? 0}`);
+    await Promise.all([
+      loadPriceData(),
+      loadDateData(),
+      loadColorData(),
+      loadFateData(),
+      loadBrosData(),
+    ]);
+    console.log(`[inspect-addon] prices: ${state.priceMap?.size ?? 0}, dates: ${state.dateMap?.size ?? 0}, colors: ${state.colorMap?.size ?? 0}, owned: ${state.ownedMap?.size ?? 0}, obtainable: ${state.obtainMap?.size ?? 0}, fate: ${state.fateMap?.size ?? 0}, bros: ${state.brosMap?.size ?? 0}`);
 
     setupObserver();
 

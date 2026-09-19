@@ -3,7 +3,6 @@ const path = require('path');
 const fs = require('fs');
 const { registerShortcuts } = require("./assets/shortcuts.js");
 const DiscordRPC = require('./discord.js');
-const { betterStatsAddon } = require('./addons/betterstats.js');
 const { overlayColorAddon } = require('./addons/overlaycolor.js');
 const { socialCardsAddon } = require('./addons/socialcards.js');
 const { inspectPriceAddon } = require('./addons/inspectprice.js');
@@ -22,7 +21,6 @@ const { roomPresetsAddon } = require('./addons/serverpresets.js');
 const { healthBarAddon } = require('./addons/hpmod.js');
 
 console.log('ADDON CHECK:', {
-  betterStatsAddon:   typeof betterStatsAddon,
   overlayColorAddon:  typeof overlayColorAddon,
   socialCardsAddon:   typeof socialCardsAddon,
   inspectPriceAddon:  typeof inspectPriceAddon,
@@ -1328,7 +1326,6 @@ function createGameWindow(settings = {}) {
                     usernameHidingScript + '\n' +
                     endGameMessageScript + '\n' +
                     badgeScript + '\n' +
-                    safeCall(betterStatsAddon, 'betterStatsAddon') + '\n' +
                     safeCall(overlayColorAddon, 'overlayColorAddon') + '\n' +
                     safeCall(socialCardsAddon, 'socialCardsAddon') + '\n' +
                     safeCall(inspectPriceAddon, 'inspectPriceAddon') + '\n' +
