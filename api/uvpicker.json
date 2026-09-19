@@ -1,0 +1,29 @@
+{
+  "SCAR": {
+    "UV": "https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/SCAR_UV.png"
+  },
+  "LAR": {
+    "UV": "https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/LAR_UV.png"
+  },
+  "M60": {
+    "UV": "https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/M60_UV.png"
+  },
+  "MAC-10": {
+    "UV": "https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/MAC10_UV.png"
+  },
+  "REVOLVER": {
+    "UV": "https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/REV_UV.png"
+  },
+  "BAYONET": {
+    "UV": "https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/BAYONET_UV.png"
+  },
+  "SHARK": {
+    "UV": "https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/SHARK_UV.png"
+  },
+  "WEATIE": {
+    "UV": "https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/WEATIE_UV.png"
+  },
+  "VITA": {
+    "UV": "https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/VITA_UV.png"
+  }
+}
