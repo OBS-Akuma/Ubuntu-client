@@ -19,8 +19,14 @@ const { customReqScripts } = require('./addons/marketusernames.js');
 const { kdDisplayAddon } = require('./addons/kdtabdisplay.js');
 const { roomPresetsAddon } = require('./addons/serverpresets.js');
 const { healthBarAddon } = require('./addons/hpmod.js');
+const { nameChangeAddon } = require('./addons/NameChange.js');
+const { settingsUbuntuAddon } = require('./addons/SettingsSave.js');
+const { settingsSearchAddon } = require('./addons/SettingSearch.js');
 
-console.log('ADDON CHECK:', {
+console.log('did ts load?', {
+  settingsSearchAddon: typeof settingsSearchAddon,
+  settingsUbuntuAddon: typeof nameChangeAddon,
+  nameChangeAddon:    typeof nameChangeAddon,
   overlayColorAddon:  typeof overlayColorAddon,
   socialCardsAddon:   typeof socialCardsAddon,
   inspectPriceAddon:  typeof inspectPriceAddon,
@@ -1326,6 +1332,9 @@ function createGameWindow(settings = {}) {
                     usernameHidingScript + '\n' +
                     endGameMessageScript + '\n' +
                     badgeScript + '\n' +
+                    safeCall(settingsSearchAddon, 'settingsSearchAddon') + '\n' +
+                    safeCall(nameChangeAddon, 'nameChangeAddon') + '\n' +
+                    safeCall(settingsUbuntuAddon, 'settingsUbuntuAddon') + '\n' +
                     safeCall(overlayColorAddon, 'overlayColorAddon') + '\n' +
                     safeCall(socialCardsAddon, 'socialCardsAddon') + '\n' +
                     safeCall(inspectPriceAddon, 'inspectPriceAddon') + '\n' +

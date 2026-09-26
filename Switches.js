@@ -117,11 +117,61 @@ function applyWindowSettings(win, settings) {
     if (typeof win.setFullScreenable === 'function') {
       win.setFullScreenable(true);
     }
+
+    setupZoomShortcuts(win);
     
     console.log('[Switches] Window settings applied successfully');
   } catch (e) {
     console.error('[Switches] Error applying window settings:', e);
   }
+}
+
+
+const ZOOM_STEP = 0.5;
+const ZOOM_MIN = -5;   // ~roughly 33% smallest step, Chromium clamps internally too
+const ZOOM_MAX = 5;    // ~roughly 300% largest step
+
+function setupZoomShortcuts(win) {
+  if (!win || win.isDestroyed()) return;
+
+  // Avoid attaching duplicate listeners if this is called more than once for the same window
+  if (win.webContents.__zoomShortcutsAttached) return;
+  win.webContents.__zoomShortcutsAttached = true;
+
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+    if (!input.alt) return;
+    if (input.control || input.meta || input.shift) return;
+
+    const key = input.key;
+    const wc = win.webContents;
+
+    // Alt + "+" (also covers Shift-less "=" key which carries "+")
+    if (key === '+' || key === '=') {
+      const current = wc.getZoomLevel();
+      wc.setZoomLevel(Math.min(ZOOM_MAX, current + ZOOM_STEP));
+      console.log('[Switches] Zoom in ->', wc.getZoomLevel());
+      event.preventDefault();
+      return;
+    }
+
+    // Alt + "-"
+    if (key === '-' || key === '_') {
+      const current = wc.getZoomLevel();
+      wc.setZoomLevel(Math.max(ZOOM_MIN, current - ZOOM_STEP));
+      console.log('[Switches] Zoom out ->', wc.getZoomLevel());
+      event.preventDefault();
+      return;
+    }
+
+    // Alt + "0" resets zoom
+    if (key === '0') {
+      wc.setZoomLevel(0);
+      console.log('[Switches] Zoom reset -> 0');
+      event.preventDefault();
+      return;
+    }
+  });
 }
 
 
@@ -136,4 +186,4 @@ module.exports = {
   applySwitches,
   applyWindowSettings,
   getDefaultSettings
-};
+}
