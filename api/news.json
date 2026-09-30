@@ -1,7 +1,7 @@
 [
   {
     "category": "general",
-    "title": "Testing Ubuntu News"
+    "title": "Testing Ubuntu News",
     "content": "content",
     "img": "https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/icon.png",
     "imgType": "icon",
