@@ -1,7 +1,7 @@
 /**
  * Displays the user's role in the profile modal by fetching role data
  * from the API and mapping it to a display name.
- * 
+ *
  * - Fetches role mapping from GitHub
  * - Fetches user data from Kirka API
  * - Displays role as a new KLO-style card
@@ -42,29 +42,29 @@ const roleDisplayAddon = () => {
   // ---- Fetch user data ----
   async function fetchUserData(userId) {
     if (!userId) return null;
-    
+
     try {
       const token = localStorage.getItem('token');
       if (!token) {
         return null;
       }
 
-      const response = await fetch('https://api2.kirka.io/api/wwMmWW/wmWNn', {
+      const response = await fetch('https://api2.kirka.io/api/WwMwnNmW/wmMwWnN', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          WwwnmW: userId,
-          wmnwWM: true
+          WnWwwM: userId,
+          wmwNnWW: true
         })
       });
-      
+
       if (!response.ok) {
         return null;
       }
-      
+
       const data = await response.json();
       return data;
     } catch (err) {
@@ -74,31 +74,32 @@ const roleDisplayAddon = () => {
 
   // ---- Get display role name from mapping ----
   function getDisplayRole(userData, roleMapping) {
-    // Check if user is banned first
+    // Check if user is banned first (key may not exist in new API)
     if (userData.wwMmWnNW === 'wnMNwWm') {
       return { text: 'BANNED', isBanned: true };
     }
-    
-    const roleCode = userData.wMwnm || null;
-    
+
+    // Role code lives at wnMNmWw in the new API response
+    const roleCode = userData.wnMNmWw || null;
+
     // If no role code, default to USER
     if (!roleCode) return { text: 'USER', isBanned: false };
-    
+
     // If we have the mapping and the role exists, return the mapped name
     if (roleMapping && roleMapping[roleCode]) {
       return { text: roleMapping[roleCode], isBanned: false };
     }
-    
+
     // If the role code is "000000" (owner), return "OWNER"
     if (roleCode === '000000') {
       return { text: 'OWNER', isBanned: false };
     }
-    
+
     // If mapping doesn't have it, return the original code
     if (roleMapping) {
       return { text: roleCode, isBanned: false };
     }
-    
+
     // If no mapping at all, return USER as fallback
     return { text: 'USER', isBanned: false };
   }
@@ -110,9 +111,9 @@ const roleDisplayAddon = () => {
     const roleInfo = getDisplayRole(userData, roleMapping);
     const displayRole = roleInfo.text;
     const isBanned = roleInfo.isBanned;
-    const roleColor = userData.wmnNM || null;
+    const roleColor = userData.wmnNM || userData.wmwNWM || null;
 
-    // Find the KLO card
+    // Find the KLO card to clone
     const kloCard = document.querySelector('.card.k-d');
     if (!kloCard) {
       return;
@@ -124,51 +125,39 @@ const roleDisplayAddon = () => {
     // Clone the KLO card
     const newCard = kloCard.cloneNode(true);
     newCard.className = 'card k-d role-klo-card';
-    
-    // Get the stat-name and stat-value elements
-    const statName = newCard.querySelector('.stat-name');
-    const statValue = newCard.querySelector('.stat-value');
 
-    // Update stat-name - remove the info icon
+    // --- stat-name: rebuild without the info-icon popover ---
+    const statName = newCard.querySelector('.stat-name');
     if (statName) {
-      // Create new stat-name without the info icon
-      const newStatName = document.createElement('div');
-      newStatName.setAttribute('data-v-7f0e55d0', '');
-      newStatName.className = 'stat-name text-2';
-      newStatName.textContent = 'Role';
-      
-      // Replace the old stat-name with the new one
-      statName.parentNode.replaceChild(newStatName, statName);
+      // Clear out everything (including the ? popover) and just set the label
+      statName.className = 'stat-name text-2 klo';
+      statName.textContent = 'ROLE';
     }
 
-    // Update stat-value with display role
+    // --- stat-value: set role text + styling ---
+    const statValue = newCard.querySelector('.stat-value');
     if (statValue) {
+      statValue.className = 'stat-value stat-value-kd text-2';
       statValue.textContent = displayRole;
-      
+
       if (isBanned) {
-        // Banned styling - keep font size default
         statValue.style.color = 'var(--red-3)';
         statValue.style.textDecoration = 'line-through';
-        // Remove any font size override
         statValue.style.fontSize = '';
       } else {
-        // Normal role styling - use default font size
         statValue.style.textDecoration = 'none';
         statValue.style.fontSize = '';
-        // Only apply color if roleColor exists
         if (roleColor) {
           statValue.style.color = roleColor;
         } else {
-          // Remove any color styling to use default
           statValue.style.color = '';
         }
       }
     }
 
-    // Find the parent container
+    // Insert the new card after the existing KLO card
     const parentContainer = kloCard.parentElement;
     if (parentContainer) {
-      // Insert the new card after the existing one
       kloCard.after(newCard);
     }
   }
