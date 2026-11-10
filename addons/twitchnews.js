@@ -59,13 +59,13 @@ const twitchNewsAddon = () => {
     dropsList = [];
 
     try {
-      const response = await fetch("https://twitch-drops-api.sunkwi.com/drops");
+      const response = await fetch("https://drops.sunkwi.com/api/twitch/drops");
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
 
-      const campaigns = Array.isArray(data) ? data : [data];
+      const campaigns = Array.isArray(data.games) ? data.games : [];
 
       for (const campaign of campaigns) {
         const gameName = campaign.gameDisplayName || "";
