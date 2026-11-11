@@ -2,11 +2,12 @@
  * Displays the user's role in the profile modal by fetching role data
  * from the API and mapping it to a display name.
  *
- * - Fetches role mapping from GitHub
+ * - Fetches role mapping from GitHub (supports both role-code and color keys)
  * - Fetches user data from Kirka API
  * - Displays role as a new KLO-style card
  * - Shows BANNED status with red color and strikethrough
  * - Shows role color if available
+ * - Falls back to color lookup when the role code has no mapping
  * - Updates when profile changes
  */
 const roleDisplayAddon = () => {
@@ -49,15 +50,15 @@ const roleDisplayAddon = () => {
         return null;
       }
 
-      const response = await fetch('https://api2.kirka.io/api/WwMwnNmW/wmMwWnN', {
+      const response = await fetch('https://api2.kirka.io/api/WwMWm/wmMwWn', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          WnWwwM: userId,
-          wmwNnWW: true
+          WnWwwNmM: userId,
+          wMWnwm: true
         })
       });
 
@@ -72,36 +73,39 @@ const roleDisplayAddon = () => {
     }
   }
 
+  // ---- Normalize a color to lowercase #rrggbb ----
+  function normColor(color) {
+    if (!color) return null;
+    const s = String(color).trim().toLowerCase();
+    if (!s) return null;
+    return s.startsWith('#') ? s : '#' + s;
+  }
+
   // ---- Get display role name from mapping ----
   function getDisplayRole(userData, roleMapping) {
-    // Check if user is banned first (key may not exist in new API)
-    if (userData.wwMmWnNW === 'wnMNwWm') {
+    // Banned is flagged by WwMWmnwN === "wNmWnMwW"
+    if (userData.WwMWmnwN === 'wNmWnMwW') {
       return { text: 'BANNED', isBanned: true };
     }
 
-    // Role code lives at wnMNmWw in the new API response
-    const roleCode = userData.wnMNmWw || null;
+    const roleCode = userData.wnMwWmN || null;
+    const roleColor = normColor(userData.wmwNWW);
 
-    // If no role code, default to USER
-    if (!roleCode) return { text: 'USER', isBanned: false };
-
-    // If we have the mapping and the role exists, return the mapped name
-    if (roleMapping && roleMapping[roleCode]) {
+    // 1. Try role code lookup first
+    if (roleCode && roleMapping && roleMapping[roleCode]) {
       return { text: roleMapping[roleCode], isBanned: false };
     }
 
-    // If the role code is "000000" (owner), return "OWNER"
-    if (roleCode === '000000') {
-      return { text: 'OWNER', isBanned: false };
+    // 2. Fall back to color lookup
+    if (roleColor && roleMapping && roleMapping[roleColor]) {
+      return { text: roleMapping[roleColor], isBanned: false };
     }
 
-    // If mapping doesn't have it, return the original code
-    if (roleMapping) {
-      return { text: roleCode, isBanned: false };
-    }
+    // 3. No code at all and no color match -> USER
+    if (!roleCode) return { text: 'USER', isBanned: false };
 
-    // If no mapping at all, return USER as fallback
-    return { text: 'USER', isBanned: false };
+    // 4. Otherwise show the raw role code
+    return { text: roleCode, isBanned: false };
   }
 
   // ---- Create new KLO card with role ----
@@ -111,7 +115,8 @@ const roleDisplayAddon = () => {
     const roleInfo = getDisplayRole(userData, roleMapping);
     const displayRole = roleInfo.text;
     const isBanned = roleInfo.isBanned;
-    const roleColor = userData.wmnNM || userData.wmwNWM || null;
+    // Role color lives at wmwNWW in the new response
+    const roleColor = userData.wmwNWW || null;
 
     // Find the KLO card to clone
     const kloCard = document.querySelector('.card.k-d');
@@ -129,7 +134,6 @@ const roleDisplayAddon = () => {
     // --- stat-name: rebuild without the info-icon popover ---
     const statName = newCard.querySelector('.stat-name');
     if (statName) {
-      // Clear out everything (including the ? popover) and just set the label
       statName.className = 'stat-name text-2 klo';
       statName.textContent = 'ROLE';
     }
@@ -190,7 +194,6 @@ const roleDisplayAddon = () => {
 
   // Setup observer for profile changes
   const observer = new MutationObserver(() => {
-    // Check if KLO card exists and role card is not displayed
     const kloCard = document.querySelector('.card.k-d');
     if (kloCard && !document.querySelector('.role-klo-card')) {
       init();
