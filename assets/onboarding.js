@@ -27,9 +27,9 @@
     const steps = [
         {
             id: 'welcome',
-            title: 'Welcome to Ubuntu Client',
+            title: 'Welcome to Hydrogen Client',
             body: () => `
-                <p class="ob-p">Ubuntu Client is a custom Kirka.io client built for deep UI customization
+                <p class="ob-p">Hydrogen Client is a custom Kirka.io client built for deep UI customization
                 and features the base game doesn't give you. Here's a quick rundown before you jump in:</p>
                 <div class="ob-grid">
                     <div class="ob-item"><i class="fas fa-play"></i><div><b>Launch</b><span>Start the game from here.</span></div></div>

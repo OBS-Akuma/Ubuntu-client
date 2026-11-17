@@ -293,7 +293,7 @@ const settingsSearchAddon = () => {
 
         if (
           row.style.display !== 'none' &&
-          !row.hasAttribute('data-settings-ubuntu')
+          !row.hasAttribute('data-settings-hydrogen')
         ) {
           return true;
         }
@@ -343,7 +343,7 @@ const settingsSearchAddon = () => {
       } else if (
         node.classList.contains('element') &&
         node.style.display !== 'none' &&
-        !node.hasAttribute('data-settings-ubuntu')
+        !node.hasAttribute('data-settings-hydrogen')
       ) {
         visibleUnderHeader += 1;
       }

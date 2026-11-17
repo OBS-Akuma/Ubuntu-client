@@ -22,7 +22,7 @@ class Menu {
   createMenu() {
     const menu = document.createElement("div");
     menu.innerHTML = this.menuHTML;
-    menu.id = "ubuntu-menu";
+    menu.id = "hydrogen-menu";
     menu.style.cssText =
       "z-index: 99999999; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95); display: none; opacity: 0; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);";
     
@@ -219,7 +219,7 @@ class Menu {
         location.reload();
         break;
       case "about":
-        alert("Ubuntu Client v1.0.0\nCreated by OBS-Akuma");
+        alert("Hydrogen Client v1.0.0\nCreated by OBS-Akuma");
         break;
       case "discord":
         window.open("https://discord.gg/r6S3mMyT4K", "_blank");

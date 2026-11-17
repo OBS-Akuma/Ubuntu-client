@@ -509,10 +509,10 @@ const devMenuAddon = () => {
       if (saved) {
         const parsed = JSON.parse(saved);
         gameSettings = { ...gameSettings, ...parsed };
-        console.log('[UbuntuClient] Loaded settings from localStorage');
+        console.log('[HydrogenClient] Loaded settings from localStorage');
       }
     } catch (e) {
-      console.warn('[UbuntuClient] Failed to load settings:', e);
+      console.warn('[HydrogenClient] Failed to load settings:', e);
     }
   }
 
@@ -520,9 +520,9 @@ const devMenuAddon = () => {
   function saveSettings() {
     try {
       localStorage.setItem('clientsettings', JSON.stringify(gameSettings));
-      console.log('[UbuntuClient] Saved settings to localStorage');
+      console.log('[HydrogenClient] Saved settings to localStorage');
     } catch (e) {
-      console.warn('[UbuntuClient] Failed to save settings:', e);
+      console.warn('[HydrogenClient] Failed to save settings:', e);
     }
   }
 
@@ -544,12 +544,12 @@ const devMenuAddon = () => {
     const logoArea = el('div', 'dm-logo-area');
     const icon = el('div', 'dm-icon');
     const iconImg = el('img', null, {
-      src: 'https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/main/assets/icon.png'
+      src: 'https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/main/assets/HYD.png'
     });
     icon.appendChild(iconImg);
     logoArea.appendChild(icon);
 
-    const name = el('span', 'dm-brand-name', { textContent: 'UbuntuClient' });
+    const name = el('span', 'dm-brand-name', { textContent: 'HydrogenClient' });
     logoArea.appendChild(name);
     topBar.appendChild(logoArea);
 
@@ -1040,9 +1040,9 @@ const devMenuAddon = () => {
       gameStylesElement.dataset.type = 'game';
       gameStylesElement.textContent = styles.join('\n');
       document.head.appendChild(gameStylesElement);
-      console.log('[UbuntuClient] Applied game settings,', styles.length, 'styles');
+      console.log('[HydrogenClient] Applied game settings,', styles.length, 'styles');
     } else {
-      console.log('[UbuntuClient] No game settings to apply');
+      console.log('[HydrogenClient] No game settings to apply');
     }
   }
 
@@ -1067,9 +1067,9 @@ const devMenuAddon = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      console.log('[UbuntuClient] Settings exported');
+      console.log('[HydrogenClient] Settings exported');
     } catch (e) {
-      console.error('[UbuntuClient] Failed to export settings:', e);
+      console.error('[HydrogenClient] Failed to export settings:', e);
     }
   }
 
@@ -1087,13 +1087,13 @@ const devMenuAddon = () => {
           saveSettings();
           updateGameSettingsUI();
           applyGameSettings();
-          console.log('[UbuntuClient] Settings imported successfully');
+          console.log('[HydrogenClient] Settings imported successfully');
           e.target.value = '';
         } else {
-          console.warn('[UbuntuClient] Invalid settings file');
+          console.warn('[HydrogenClient] Invalid settings file');
         }
       } catch (err) {
-        console.error('[UbuntuClient] Failed to import settings:', err);
+        console.error('[HydrogenClient] Failed to import settings:', err);
       }
     };
     reader.readAsText(file);
@@ -1145,7 +1145,7 @@ const devMenuAddon = () => {
     updateGameSettingsUI();
     applyGameSettings();
 
-    console.log('[UbuntuClient] Settings reset to defaults');
+    console.log('[HydrogenClient] Settings reset to defaults');
   }
 
   // ---- Load Community Scripts ----
@@ -1166,10 +1166,10 @@ const devMenuAddon = () => {
       .then(data => {
         communityScripts = data.scripts || [];
         populateCommunityDropdown();
-        console.log('[UbuntuClient] Loaded community scripts:', communityScripts.length);
+        console.log('[HydrogenClient] Loaded community scripts:', communityScripts.length);
       })
       .catch(err => {
-        console.error('[UbuntuClient] Failed to load community scripts:', err);
+        console.error('[HydrogenClient] Failed to load community scripts:', err);
         dropdown.innerHTML = '';
         dropdown.appendChild(el('option', null, { textContent: 'Error loading scripts', disabled: true, selected: true }));
       });
@@ -1201,18 +1201,18 @@ const devMenuAddon = () => {
 
     const selectedIndex = parseInt(dropdown.value);
     if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= communityScripts.length) {
-      console.warn('[UbuntuClient] No valid script selected');
+      console.warn('[HydrogenClient] No valid script selected');
       return;
     }
 
     const script = communityScripts[selectedIndex];
     if (!script || !script.url) {
-      console.warn('[UbuntuClient] Script has no URL');
+      console.warn('[HydrogenClient] Script has no URL');
       return;
     }
 
     if (installedCommunityScripts.some(s => s.name === script.name)) {
-      console.warn('[UbuntuClient] Script already installed:', script.name);
+      console.warn('[HydrogenClient] Script already installed:', script.name);
       return;
     }
 
@@ -1233,10 +1233,10 @@ const devMenuAddon = () => {
         installedCommunityScripts.push({ ...script, element: scriptElement });
 
         updateCommunityScriptList();
-        console.log('[UbuntuClient] Installed community script:', script.name);
+        console.log('[HydrogenClient] Installed community script:', script.name);
       })
       .catch(err => {
-        console.error('[UbuntuClient] Failed to install community script:', err);
+        console.error('[HydrogenClient] Failed to install community script:', err);
       });
   }
 
@@ -1255,7 +1255,7 @@ const devMenuAddon = () => {
 
     installedCommunityScripts.splice(index, 1);
     updateCommunityScriptList();
-    console.log('[UbuntuClient] Uninstalled community script:', script.name);
+    console.log('[HydrogenClient] Uninstalled community script:', script.name);
   }
 
   // ---- Clear All Community Scripts ----
@@ -1273,7 +1273,7 @@ const devMenuAddon = () => {
 
     installedCommunityScripts = [];
     updateCommunityScriptList();
-    console.log('[UbuntuClient] Cleared all community scripts');
+    console.log('[HydrogenClient] Cleared all community scripts');
   }
 
   // ---- Update Community Script List ----
@@ -1418,9 +1418,9 @@ const devMenuAddon = () => {
         injectedStyles.push(style);
 
         updateCssFileList();
-        console.log('[UbuntuClient] Uploaded CSS file:', file.name);
+        console.log('[HydrogenClient] Uploaded CSS file:', file.name);
       } catch (err) {
-        console.error('[UbuntuClient] Failed to inject file CSS:', err);
+        console.error('[HydrogenClient] Failed to inject file CSS:', err);
       }
 
       cssFileInput.value = '';
@@ -1458,9 +1458,9 @@ const devMenuAddon = () => {
         injectedScripts.push(script);
 
         updateJsFileList();
-        console.log('[UbuntuClient] Uploaded JS file:', file.name);
+        console.log('[HydrogenClient] Uploaded JS file:', file.name);
       } catch (err) {
-        console.error('[UbuntuClient] Failed to inject file JavaScript:', err);
+        console.error('[HydrogenClient] Failed to inject file JavaScript:', err);
       }
 
       jsFileInput.value = '';
@@ -1512,10 +1512,10 @@ const devMenuAddon = () => {
           style.textContent = cssContent;
           document.head.appendChild(style);
           injectedStyles.push(style);
-          console.log('[UbuntuClient] Injected fetched CSS from:', linkValue);
+          console.log('[HydrogenClient] Injected fetched CSS from:', linkValue);
         })
         .catch(err => {
-          console.error('[UbuntuClient] Failed to fetch CSS:', err);
+          console.error('[HydrogenClient] Failed to fetch CSS:', err);
         });
       return;
     }
@@ -1528,9 +1528,9 @@ const devMenuAddon = () => {
         style.textContent = rawValue;
         document.head.appendChild(style);
         injectedStyles.push(style);
-        console.log('[UbuntuClient] Injected raw CSS');
+        console.log('[HydrogenClient] Injected raw CSS');
       } catch (err) {
-        console.error('[UbuntuClient] Failed to inject raw CSS:', err);
+        console.error('[HydrogenClient] Failed to inject raw CSS:', err);
       }
     }
   }
@@ -1560,10 +1560,10 @@ const devMenuAddon = () => {
           script.textContent = jsContent;
           document.head.appendChild(script);
           injectedScripts.push(script);
-          console.log('[UbuntuClient] Injected fetched JavaScript from:', urlValue);
+          console.log('[HydrogenClient] Injected fetched JavaScript from:', urlValue);
         })
         .catch(err => {
-          console.error('[UbuntuClient] Failed to fetch JavaScript:', err);
+          console.error('[HydrogenClient] Failed to fetch JavaScript:', err);
         });
       return;
     }
@@ -1576,9 +1576,9 @@ const devMenuAddon = () => {
         script.textContent = rawValue;
         document.head.appendChild(script);
         injectedScripts.push(script);
-        console.log('[UbuntuClient] Injected raw JavaScript');
+        console.log('[HydrogenClient] Injected raw JavaScript');
       } catch (err) {
-        console.error('[UbuntuClient] Failed to inject raw JavaScript:', err);
+        console.error('[HydrogenClient] Failed to inject raw JavaScript:', err);
       }
     }
   }
@@ -1589,7 +1589,7 @@ const devMenuAddon = () => {
     injectedScripts = [];
     uploadedJsFiles = [];
     updateJsFileList();
-    if (showFeedback) console.log('[UbuntuClient] Cleared all injected scripts');
+    if (showFeedback) console.log('[HydrogenClient] Cleared all injected scripts');
   }
 
   // ---- Clear All Styles ----
@@ -1598,7 +1598,7 @@ const devMenuAddon = () => {
     injectedStyles = [];
     uploadedCssFiles = [];
     updateCssFileList();
-    if (showFeedback) console.log('[UbuntuClient] Cleared all injected styles');
+    if (showFeedback) console.log('[HydrogenClient] Cleared all injected styles');
   }
 
   // ---- Toggle Menu ----
@@ -1632,13 +1632,13 @@ const devMenuAddon = () => {
       if (event.key === 'Escape' && menuVisible) toggleMenu(event);
     });
 
-    console.log('[UbuntuClient] Initialized. Press Right Shift to open.');
-    console.log('[UbuntuClient] Upload up to 3 CSS files and 3 JS files with delete support.');
-    console.log('[UbuntuClient] Inject JavaScript via URL, raw code, or file upload.');
-    console.log('[UbuntuClient] Community scripts available in the Scripts tab with install/uninstall.');
-    console.log('[UbuntuClient] Game settings saved to localStorage.clientsettings');
-    console.log('[UbuntuClient] Export/import settings in the Client tab.');
-    console.log('[UbuntuClient] Drag the top bar to move the window.');
+    console.log('[HydrogenClient] Initialized. Press Right Shift to open.');
+    console.log('[HydrogenClient] Upload up to 3 CSS files and 3 JS files with delete support.');
+    console.log('[HydrogenClient] Inject JavaScript via URL, raw code, or file upload.');
+    console.log('[HydrogenClient] Community scripts available in the Scripts tab with install/uninstall.');
+    console.log('[HydrogenClient] Game settings saved to localStorage.clientsettings');
+    console.log('[HydrogenClient] Export/import settings in the Client tab.');
+    console.log('[HydrogenClient] Drag the top bar to move the window.');
   }
 
   // ---- Cleanup Function ----
@@ -1656,7 +1656,7 @@ const devMenuAddon = () => {
     clearAllCommunityScripts();
     if (statusTimeout) { clearTimeout(statusTimeout); statusTimeout = null; }
     if (autoApplyTimeout) { clearTimeout(autoApplyTimeout); autoApplyTimeout = null; }
-    console.log('[UbuntuClient] Cleaned up.');
+    console.log('[HydrogenClient] Cleaned up.');
   }
 
   init();

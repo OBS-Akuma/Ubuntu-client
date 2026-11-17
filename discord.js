@@ -16,14 +16,14 @@ ipcMain.on('save-activity-data', (event, data) => {
   try {
     console.log(' Received save request from renderer:', data);
     const documentsPath = app.getPath('documents');
-    const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
+    const hydrogenFolder = path.join(documentsPath, 'Ubuntu');
     
-    if (!fs.existsSync(ubuntuFolder)) {
-      fs.mkdirSync(ubuntuFolder, { recursive: true });
-      console.log(' Created Ubuntu folder');
+    if (!fs.existsSync(hydrogenFolder)) {
+      fs.mkdirSync(hydrogenFolder, { recursive: true });
+      console.log(' Created Hydrogen folder');
     }
     
-    const filePath = path.join(ubuntuFolder, 'Activity.json');
+    const filePath = path.join(hydrogenFolder, 'Activity.json');
     data.lastUpdated = new Date().toISOString();
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
     console.log(' Saved to file:', filePath);
@@ -39,8 +39,8 @@ ipcMain.on('save-activity-data', (event, data) => {
 ipcMain.handle('load-activity-data', () => {
   try {
     const documentsPath = app.getPath('documents');
-    const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
-    const filePath = path.join(ubuntuFolder, 'Activity.json');
+    const hydrogenFolder = path.join(documentsPath, 'Ubuntu');
+    const filePath = path.join(hydrogenFolder, 'Activity.json');
     
     if (!fs.existsSync(filePath)) {
       return { success: true, data: { totalKills: 0, weapons: {} } };
@@ -77,7 +77,7 @@ function createGameWindow(settings = {}) {
 
   gameWindow = new BrowserWindow({
     fullscreen: true,
-    icon: path.join(__dirname, "/assets/icon.png"),
+    icon: path.join(__dirname, "/assets/HYD.png"),
     width: 1280,
     height: 720,
     show: false,
@@ -104,8 +104,8 @@ function createGameWindow(settings = {}) {
   });
 
   const documentsPath = app.getPath('documents');
-  const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
-  const tokenPath = path.join(ubuntuFolder, 'token.txt');
+  const hydrogenFolder = path.join(documentsPath, 'Ubuntu');
+  const tokenPath = path.join(hydrogenFolder, 'token.txt');
   let token = '';
   let targetPlayer = 'Newbie';
   
@@ -163,7 +163,7 @@ function createGameWindow(settings = {}) {
 
           const container = document.createElement('div');
           container.innerHTML = menuHTML;
-          container.id = 'ubuntu-menu-container';
+          container.id = 'hydrogen-menu-container';
           container.style.cssText = 'z-index: 99999999; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95); display: none; opacity: 0; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);';
           
 
@@ -208,7 +208,7 @@ function createGameWindow(settings = {}) {
           };
           
 
-          window.UbuntuMenu = menu;
+          window.HydrogenMenu = menu;
           
 
           
@@ -300,7 +300,7 @@ function createGameWindow(settings = {}) {
                   location.reload();
                   break;
                 case 'about':
-                  alert('Ubuntu Client v1.0.0\\nCreated by OBS-Akuma');
+                  alert('Hydrogen Client v1.0.0\\nCreated by OBS-Akuma');
                   break;
                 case 'discord':
                   window.open('https://discord.gg/r6S3mMyT4K', '_blank');
@@ -388,7 +388,7 @@ function createGameWindow(settings = {}) {
       }
 
       try {
-        const existingCandidate = localStorage.getItem('token') || localStorage.getItem('Ubuntu_token');
+        const existingCandidate = localStorage.getItem('token') || localStorage.getItem('Hydrogen_token');
         if (existingCandidate && looksLikeJWT(existingCandidate)) {
           console.log('[TokenCapture] Found existing token already in localStorage on script start');
           if (window.electronAPI && window.electronAPI.saveToken) {
@@ -414,7 +414,7 @@ function createGameWindow(settings = {}) {
 
           console.log('[TokenCapture] localStorage.setItem ->', key, '(len:', value ? value.length : 0, ')');
 
-          const isKnownKey = (key === 'token' || key === 'Ubuntu_token');
+          const isKnownKey = (key === 'token' || key === 'Hydrogen_token');
           const isJWTShaped = looksLikeJWT(value);
 
           if (value && (isKnownKey || isJWTShaped)) {
@@ -431,7 +431,7 @@ function createGameWindow(settings = {}) {
         const existingToken = localStorage.getItem('token');
         if (existingToken !== token) {
           localStorage.setItem('token', token);
-          localStorage.setItem('Ubuntu_token', token);
+          localStorage.setItem('Hydrogen_token', token);
           console.log(' Injected token from file on game load');
         } else {
           console.log(' Token already exists, skipping injection');
@@ -443,7 +443,7 @@ function createGameWindow(settings = {}) {
       if (!window._storageListenerAdded) {
         window._storageListenerAdded = true;
         window.addEventListener('storage', function(e) {
-          const isKnownKey = (e.key === 'token' || e.key === 'Ubuntu_token');
+          const isKnownKey = (e.key === 'token' || e.key === 'Hydrogen_token');
           const isJWTShaped = looksLikeJWT(e.newValue);
           if (e.newValue && e.newValue !== e.oldValue && (isKnownKey || isJWTShaped)) {
             console.log(' Token changed in storage on key:', e.key);
@@ -719,7 +719,7 @@ function createGameWindow(settings = {}) {
       
 
       const styleElement = document.createElement('style');
-      styleElement.id = 'ubuntu-username-hide';
+      styleElement.id = 'hydrogen-username-hide';
       
 
       const usernameHideCSS = \`
@@ -754,7 +754,7 @@ function createGameWindow(settings = {}) {
 
       function updateUsernameHiding() {
         const hideUsernames = localStorage.getItem('menu_Hide_usernames') === 'true';
-        const existingStyle = document.getElementById('ubuntu-username-hide');
+        const existingStyle = document.getElementById('hydrogen-username-hide');
         
         if (hideUsernames) {
           if (!existingStyle) {
@@ -798,7 +798,7 @@ function createGameWindow(settings = {}) {
   const combinedScript = injectionScript + '\n' + gunTrackerScript + '\n' + menuScript + '\n' + usernameHidingScript;
 
 
-  const settingsPath = path.join(ubuntuFolder, 'settings.txt');
+  const settingsPath = path.join(hydrogenFolder, 'settings.txt');
   let proxyUrl = 'https://kirka.io/';
   let discordRpcEnabled = true;
 
@@ -941,7 +941,7 @@ function createGameWindow(settings = {}) {
 
 
   gameWindow.webContents.setUserAgent(
-    `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.7103.116 Safari/537.36 Electron/${app.getVersion()} UbuntuClient/${app.getVersion()}`
+    `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.7103.116 Safari/537.36 Electron/${app.getVersion()} HydrogenClient/${app.getVersion()}`
   );
 
   console.log(' Loading URL:', proxyUrl);

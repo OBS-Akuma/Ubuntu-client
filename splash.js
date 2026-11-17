@@ -9,19 +9,19 @@ let gameWindow = null;
 
 function getTokenFilePath() {
   const documentsPath = app.getPath('documents');
-  const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
+  const hydrogenFolder = path.join(documentsPath, 'Ubuntu');
   
-  if (!fs.existsSync(ubuntuFolder)) {
-    fs.mkdirSync(ubuntuFolder, { recursive: true });
-    console.log(' Created Ubuntu folder at:', ubuntuFolder);
+  if (!fs.existsSync(hydrogenFolder)) {
+    fs.mkdirSync(hydrogenFolder, { recursive: true });
+    console.log(' Created Hydrogen folder at:', hydrogenFolder);
   }
   
-  return path.join(ubuntuFolder, 'token.txt');
+  return path.join(hydrogenFolder, 'token.txt');
 }
 
 function createSplashWindow() {
   splashWindow = new BrowserWindow({
-    icon: path.join(__dirname, "/assets/icon.png"),
+    icon: path.join(__dirname, "/assets/HYD.png"),
     width: 920,
     height: 620,
     frame: false,

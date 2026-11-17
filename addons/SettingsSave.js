@@ -12,7 +12,7 @@
  * - Adds Use and Remove buttons
  * - Auto-names presets "<type> #N"
  * - Restores presets after leaving/reopening settings
- * - Uses Settings_ubuntu as the localStorage key
+ * - Uses Settings_hydrogen as the localStorage key
  * - Avoids continuously rebuilding the UI
  *
  * Chromium 85 compatibility notes:
@@ -23,10 +23,10 @@
  *   replaceAll, and :has() which are not in Chromium 85.
  */
 
-const settingsUbuntuAddon = () => {
+const settingsHydrogenAddon = () => {
   'use strict';
 
-  const STORAGE_KEY = 'Settings_ubuntu';
+  const STORAGE_KEY = 'Settings_hydrogen';
 
   let observer = null;
   let renderTimeout = null;
@@ -56,7 +56,7 @@ const settingsUbuntuAddon = () => {
       };
     } catch (err) {
       console.error(
-        '[Settings Ubuntu] Failed to read storage:',
+        '[Settings Hydrogen] Failed to read storage:',
         err
       );
 
@@ -75,7 +75,7 @@ const settingsUbuntuAddon = () => {
       );
     } catch (err) {
       console.error(
-        '[Settings Ubuntu] Failed to save storage:',
+        '[Settings Hydrogen] Failed to save storage:',
         err
       );
     }
@@ -230,7 +230,7 @@ const settingsUbuntuAddon = () => {
     }
 
     section.rows.forEach(row => {
-      if (row.hasAttribute('data-settings-ubuntu')) {
+      if (row.hasAttribute('data-settings-hydrogen')) {
         return;
       }
 
@@ -321,7 +321,7 @@ const settingsUbuntuAddon = () => {
     }
 
     section.rows.forEach(row => {
-      if (row.hasAttribute('data-settings-ubuntu')) {
+      if (row.hasAttribute('data-settings-hydrogen')) {
         return;
       }
 
@@ -394,7 +394,7 @@ const settingsUbuntuAddon = () => {
 
     if (!template) {
       console.warn(
-        '[Settings Ubuntu] #import template not found.'
+        '[Settings Hydrogen] #import template not found.'
       );
 
       return null;
@@ -447,7 +447,7 @@ const settingsUbuntuAddon = () => {
 
     if (!image) {
       console.error(
-        '[Settings Ubuntu] Could not find the ' +
+        '[Settings Hydrogen] Could not find the ' +
           type +
           ' preview image.'
       );
@@ -459,7 +459,7 @@ const settingsUbuntuAddon = () => {
 
     if (!imageSrc) {
       console.error(
-        '[Settings Ubuntu] ' + type + ' preview has no src.'
+        '[Settings Hydrogen] ' + type + ' preview has no src.'
       );
 
       return;
@@ -482,7 +482,7 @@ const settingsUbuntuAddon = () => {
     setStorage(storage);
 
     console.log(
-      '[Settings Ubuntu] Saved ' + type + ': ' + cleanName
+      '[Settings Hydrogen] Saved ' + type + ': ' + cleanName
     );
 
     renderAll();
@@ -494,7 +494,7 @@ const settingsUbuntuAddon = () => {
 
   const createSaveRow = (type, section) => {
     const template = section.rows.find(
-      row => !row.hasAttribute('data-settings-ubuntu')
+      row => !row.hasAttribute('data-settings-hydrogen')
     );
 
     if (!template) {
@@ -504,7 +504,7 @@ const settingsUbuntuAddon = () => {
     const row = template.cloneNode(true);
 
     row.setAttribute(
-      'data-settings-ubuntu',
+      'data-settings-hydrogen',
       type + '-save'
     );
 
@@ -530,12 +530,12 @@ const settingsUbuntuAddon = () => {
     }
 
     button.setAttribute(
-      'data-settings-ubuntu-action',
+      'data-settings-hydrogen-action',
       'save'
     );
 
     button.setAttribute(
-      'data-settings-ubuntu-type',
+      'data-settings-hydrogen-type',
       type
     );
 
@@ -550,7 +550,7 @@ const settingsUbuntuAddon = () => {
 
   const createSavedRow = (type, section, name, preset) => {
     const template = section.rows.find(
-      row => !row.hasAttribute('data-settings-ubuntu')
+      row => !row.hasAttribute('data-settings-hydrogen')
     );
 
     if (!template) {
@@ -560,12 +560,12 @@ const settingsUbuntuAddon = () => {
     const row = template.cloneNode(true);
 
     row.setAttribute(
-      'data-settings-ubuntu',
+      'data-settings-hydrogen',
       type + '-saved'
     );
 
     row.setAttribute(
-      'data-settings-ubuntu-preset',
+      'data-settings-hydrogen-preset',
       name
     );
 
@@ -630,17 +630,17 @@ const settingsUbuntuAddon = () => {
       useButton.style.height = '34px';
 
       useButton.setAttribute(
-        'data-settings-ubuntu-action',
+        'data-settings-hydrogen-action',
         'use'
       );
 
       useButton.setAttribute(
-        'data-settings-ubuntu-type',
+        'data-settings-hydrogen-type',
         type
       );
 
       useButton.setAttribute(
-        'data-settings-ubuntu-preset',
+        'data-settings-hydrogen-preset',
         name
       );
 
@@ -680,17 +680,17 @@ const settingsUbuntuAddon = () => {
       removeButton.style.filter = 'none';
 
       removeButton.setAttribute(
-        'data-settings-ubuntu-action',
+        'data-settings-hydrogen-action',
         'remove'
       );
 
       removeButton.setAttribute(
-        'data-settings-ubuntu-type',
+        'data-settings-hydrogen-type',
         type
       );
 
       removeButton.setAttribute(
-        'data-settings-ubuntu-preset',
+        'data-settings-hydrogen-preset',
         name
       );
 
@@ -712,7 +712,7 @@ const settingsUbuntuAddon = () => {
     }
 
     const selector =
-      '[data-settings-ubuntu^="' + type + '-"]';
+      '[data-settings-hydrogen^="' + type + '-"]';
 
     document.querySelectorAll(selector).forEach(element => {
       if (element.parentNode) {
@@ -814,7 +814,7 @@ const settingsUbuntuAddon = () => {
         }
 
         const button = target.closest(
-          'button[data-settings-ubuntu-action]'
+          'button[data-settings-hydrogen-action]'
         );
 
         if (!button) {
@@ -822,11 +822,11 @@ const settingsUbuntuAddon = () => {
         }
 
         const action = button.getAttribute(
-          'data-settings-ubuntu-action'
+          'data-settings-hydrogen-action'
         );
 
         const type = button.getAttribute(
-          'data-settings-ubuntu-type'
+          'data-settings-hydrogen-type'
         );
 
         if (!action || !type) {
@@ -845,7 +845,7 @@ const settingsUbuntuAddon = () => {
 
         if (action === 'save') {
           console.log(
-            '[Settings Ubuntu] Delegated save: ' + type
+            '[Settings Hydrogen] Delegated save: ' + type
           );
 
           savePreset(type, section);
@@ -855,7 +855,7 @@ const settingsUbuntuAddon = () => {
 
         if (action === 'use') {
           const presetName = button.getAttribute(
-            'data-settings-ubuntu-preset'
+            'data-settings-hydrogen-preset'
           );
 
           if (!presetName) {
@@ -885,7 +885,7 @@ const settingsUbuntuAddon = () => {
 
         if (action === 'remove') {
           const presetName = button.getAttribute(
-            'data-settings-ubuntu-preset'
+            'data-settings-hydrogen-preset'
           );
 
           if (!presetName) {
@@ -1022,7 +1022,7 @@ const settingsUbuntuAddon = () => {
   // DEBUG API
   // ============================================================
 
-  window.SettingsUbuntu = {
+  window.SettingsHydrogen = {
     storageKey: STORAGE_KEY,
 
     getStorage: getStorage,
@@ -1034,17 +1034,17 @@ const settingsUbuntuAddon = () => {
       const image = getCurrentImage(section);
 
       console.log(
-        '[Settings Ubuntu] Crosshair image:',
+        '[Settings Hydrogen] Crosshair image:',
         image
       );
 
       console.log(
-        '[Settings Ubuntu] Crosshair src:',
+        '[Settings Hydrogen] Crosshair src:',
         image && image.getAttribute('src')
       );
 
       console.log(
-        '[Settings Ubuntu] Crosshair settings:',
+        '[Settings Hydrogen] Crosshair settings:',
         readSettings(section)
       );
     },
@@ -1054,28 +1054,28 @@ const settingsUbuntuAddon = () => {
       const image = getCurrentImage(section);
 
       console.log(
-        '[Settings Ubuntu] Hitmarker image:',
+        '[Settings Hydrogen] Hitmarker image:',
         image
       );
 
       console.log(
-        '[Settings Ubuntu] Hitmarker src:',
+        '[Settings Hydrogen] Hitmarker src:',
         image && image.getAttribute('src')
       );
 
       console.log(
-        '[Settings Ubuntu] Hitmarker settings:',
+        '[Settings Hydrogen] Hitmarker settings:',
         readSettings(section)
       );
     }
   };
 
   console.log(
-    '[Settings Ubuntu] Crosshair + Hitmarker presets set up.'
+    '[Settings Hydrogen] Crosshair + Hitmarker presets set up.'
   );
 };
 
 // Export for use in main file
 module.exports = {
-  settingsUbuntuAddon: settingsUbuntuAddon
+  settingsHydrogenAddon: settingsHydrogenAddon
 };

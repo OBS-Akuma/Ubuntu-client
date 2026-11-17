@@ -141,8 +141,8 @@ const registerShortcuts = (window) => {
   
   register("F4", () => {
     const documentsPath = app.getPath('documents');
-    const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
-    const settingsPath = path.join(ubuntuFolder, 'settings.txt');
+    const hydrogenFolder = path.join(documentsPath, 'Ubuntu');
+    const settingsPath = path.join(hydrogenFolder, 'settings.txt');
     let proxyUrl = 'https://kirka.io/';
     
     try {

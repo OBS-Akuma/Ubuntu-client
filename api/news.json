@@ -1,9 +1,9 @@
 [
   {
     "category": "general",
-    "title": "Testing Ubuntu News",
+    "title": "Testing Hydrogen News",
     "content": "content",
-    "img": "https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/icon.png",
+    "img": "https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/HYD.png",
     "imgType": "icon",
     "link": "https://Ubuntuclient.xyz",
     "updatedAt": 172800000,

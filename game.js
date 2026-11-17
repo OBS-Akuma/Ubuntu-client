@@ -20,12 +20,12 @@ const { kdDisplayAddon } = require('./addons/kdtabdisplay.js');
 const { roomPresetsAddon } = require('./addons/serverpresets.js');
 const { healthBarAddon } = require('./addons/hpmod.js');
 const { nameChangeAddon } = require('./addons/NameChange.js');
-const { settingsUbuntuAddon } = require('./addons/SettingsSave.js');
+const { settingsHydrogenAddon } = require('./addons/SettingsSave.js');
 const { settingsSearchAddon } = require('./addons/SettingSearch.js');
 
 console.log('did ts load?', {
   settingsSearchAddon: typeof settingsSearchAddon,
-  settingsUbuntuAddon: typeof nameChangeAddon,
+  settingsHydrogenAddon: typeof nameChangeAddon,
   nameChangeAddon:    typeof nameChangeAddon,
   overlayColorAddon:  typeof overlayColorAddon,
   socialCardsAddon:   typeof socialCardsAddon,
@@ -72,7 +72,7 @@ function createGameWindow(settings = {}) {
 
   gameWindow = new BrowserWindow({
     fullscreen: true,
-    icon: path.join(__dirname, "/assets/icon.png"),
+    icon: path.join(__dirname, "/assets/HYD.png"),
     width: 1280,
     height: 720,
     show: false,
@@ -92,8 +92,8 @@ function createGameWindow(settings = {}) {
   });
 
   const documentsPath = app.getPath('documents');
-  const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
-  const tokenPath = path.join(ubuntuFolder, 'token.txt');
+  const hydrogenFolder = path.join(documentsPath, 'Ubuntu');
+  const tokenPath = path.join(hydrogenFolder, 'token.txt');
   let token = '';
   let targetPlayer = 'Newbie';
   
@@ -146,9 +146,9 @@ function createGameWindow(settings = {}) {
   try {
 
     badgeModuleSource = fs.readFileSync(path.join(__dirname, 'badges.js'), 'utf8');
-    console.log('[Ubuntu Badges] Loaded badge module source, length:', badgeModuleSource.length);
+    console.log('[Hydrogen Badges] Loaded badge module source, length:', badgeModuleSource.length);
   } catch (e) {
-    console.error('[Ubuntu Badges] Failed to load badge module:', e.message);
+    console.error('[Hydrogen Badges] Failed to load badge module:', e.message);
   }
 
 
@@ -170,7 +170,7 @@ function createGameWindow(settings = {}) {
 
           const container = document.createElement('div');
           container.innerHTML = menuHTML;
-          container.id = 'ubuntu-menu-container';
+          container.id = 'hydrogen-menu-container';
           container.style.cssText = 'z-index: 99999999; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95); display: none; opacity: 0; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);';
           
 
@@ -215,7 +215,7 @@ function createGameWindow(settings = {}) {
           };
           
 
-          window.UbuntuMenu = menu;
+          window.HydrogenMenu = menu;
           
 
 
@@ -343,7 +343,7 @@ function createGameWindow(settings = {}) {
                   location.reload();
                   break;
                 case 'about':
-                  alert('Ubuntu Client v1.0.0\\nCreated by OBS-Akuma');
+                  alert('Hydrogen Client v1.0.0\\nCreated by OBS-Akuma');
                   break;
                 case 'discord':
                   window.open('https://discord.gg/r6S3mMyT4K', '_blank');
@@ -581,7 +581,7 @@ function createGameWindow(settings = {}) {
       }
 
       try {
-        const existingCandidate = localStorage.getItem('token') || localStorage.getItem('Ubuntu_token');
+        const existingCandidate = localStorage.getItem('token') || localStorage.getItem('Hydrogen_token');
         if (existingCandidate && looksLikeJWT(existingCandidate)) {
           console.log('[TokenCapture] Found existing token already in localStorage on script start');
           if (window.electronAPI && window.electronAPI.saveToken) {
@@ -607,7 +607,7 @@ function createGameWindow(settings = {}) {
 
           console.log('[TokenCapture] localStorage.setItem ->', key, '(len:', value ? value.length : 0, ')');
 
-          const isKnownKey = (key === 'token' || key === 'Ubuntu_token');
+          const isKnownKey = (key === 'token' || key === 'Hydrogen_token');
           const isJWTShaped = looksLikeJWT(value);
 
           if (value && (isKnownKey || isJWTShaped)) {
@@ -624,7 +624,7 @@ function createGameWindow(settings = {}) {
         const existingToken = localStorage.getItem('token');
         if (existingToken !== token) {
           localStorage.setItem('token', token);
-          localStorage.setItem('Ubuntu_token', token);
+          localStorage.setItem('Hydrogen_token', token);
           console.log(' Injected token from file on game load');
         } else {
           console.log(' Token already exists, skipping injection');
@@ -636,7 +636,7 @@ function createGameWindow(settings = {}) {
       if (!window._storageListenerAdded) {
         window._storageListenerAdded = true;
         window.addEventListener('storage', function(e) {
-          const isKnownKey = (e.key === 'token' || e.key === 'Ubuntu_token');
+          const isKnownKey = (e.key === 'token' || e.key === 'Hydrogen_token');
           const isJWTShaped = looksLikeJWT(e.newValue);
           if (e.newValue && e.newValue !== e.oldValue && (isKnownKey || isJWTShaped)) {
             console.log(' Token changed in storage on key:', e.key);
@@ -930,12 +930,12 @@ function createGameWindow(settings = {}) {
       
       function applyUsernameHiding(enable) {
         console.log('[Username Hiding] Applying with enable:', enable);
-        let styleElement = document.getElementById('ubuntu-username-hide');
+        let styleElement = document.getElementById('hydrogen-username-hide');
         
         if (enable) {
           if (!styleElement) {
             styleElement = document.createElement('style');
-            styleElement.id = 'ubuntu-username-hide';
+            styleElement.id = 'hydrogen-username-hide';
             styleElement.textContent = usernameHideCSS;
             document.head.appendChild(styleElement);
             console.log('[Username Hiding]  CSS applied (enabled)');
@@ -988,10 +988,10 @@ function createGameWindow(settings = {}) {
       });
       
       const observer = new MutationObserver(function() {
-        const styleElement = document.getElementById('ubuntu-username-hide');
+        const styleElement = document.getElementById('hydrogen-username-hide');
         if (hideUsernames && !styleElement) {
           const newStyle = document.createElement('style');
-          newStyle.id = 'ubuntu-username-hide';
+          newStyle.id = 'hydrogen-username-hide';
           newStyle.textContent = usernameHideCSS;
           document.head.appendChild(newStyle);
           console.log('[Username Hiding] Re-injected CSS');
@@ -1134,30 +1134,30 @@ function createGameWindow(settings = {}) {
 
   const badgeScript = `
     (function() {
-      console.log('[Ubuntu Badges] Initializing badge system...');
+      console.log('[Hydrogen Badges] Initializing badge system...');
       
 
       try {
 
         ${badgeModuleSource}
-        console.log('[Ubuntu Badges] Badge module loaded successfully');
+        console.log('[Hydrogen Badges] Badge module loaded successfully');
       } catch (e) {
-        console.error('[Ubuntu Badges] Failed to load badge module:', e);
+        console.error('[Hydrogen Badges] Failed to load badge module:', e);
       }
       
 
       if (typeof module !== 'undefined' && module.exports) {
-        window.ubuntuBadges = module.exports;
-        console.log('[Ubuntu Badges] Badge module exposed as window.ubuntuBadges');
+        window.hydrogenBadges = module.exports;
+        console.log('[Hydrogen Badges] Badge module exposed as window.hydrogenBadges');
       } else {
-        console.error('[Ubuntu Badges] Badge module not found after loading');
+        console.error('[Hydrogen Badges] Badge module not found after loading');
         return;
       }
       
 
-      async function applyUbuntuBadgesToAllPlayers() {
+      async function applyHydrogenBadgesToAllPlayers() {
         const elements = document.querySelectorAll('.nickname, .player-name .nickname, .teammate-name, .killer-name, .name-kill');
-        console.log('[Ubuntu Badges] Found', elements.length, 'elements to process');
+        console.log('[Hydrogen Badges] Found', elements.length, 'elements to process');
         
         for (const element of elements) {
           let shortId = null;
@@ -1188,29 +1188,29 @@ function createGameWindow(settings = {}) {
           if (shortId) {
             try {
 
-              const customizations = JSON.parse(localStorage.getItem('ubuntu-customizations') || '[]');
+              const customizations = JSON.parse(localStorage.getItem('hydrogen-customizations') || '[]');
               const localEntry = customizations.find(c => c.shortId === shortId);
               const existingBadges = localEntry?.badges || [];
               const existingGradient = localEntry?.gradient || null;
               
 
-              const badgeConfig = await window.ubuntuBadges.getUserBadges(shortId, { 
+              const badgeConfig = await window.hydrogenBadges.getUserBadges(shortId, { 
                 redlineData: redlineData,
                 existingBadges: existingBadges,
                 existingGradient: existingGradient
               });
               
               if (badgeConfig) {
-                console.log('[Ubuntu Badges] Applying badge config for', shortId, 'from source:', badgeConfig.sourceName || badgeConfig.source);
+                console.log('[Hydrogen Badges] Applying badge config for', shortId, 'from source:', badgeConfig.sourceName || badgeConfig.source);
 
                 const settings = { animations: localStorage.getItem('menu_animations') === 'true' };
-                window.ubuntuBadges.applyBadgesToElement(element, badgeConfig, settings);
+                window.hydrogenBadges.applyBadgesToElement(element, badgeConfig, settings);
               } else {
 
-                window.ubuntuBadges.removeBadgesFromElement(element);
+                window.hydrogenBadges.removeBadgesFromElement(element);
               }
             } catch (e) {
-              console.error('[Ubuntu Badges] Failed to apply badges to element:', e);
+              console.error('[Hydrogen Badges] Failed to apply badges to element:', e);
             }
           }
         }
@@ -1239,8 +1239,8 @@ function createGameWindow(settings = {}) {
           }
           
           if (needsUpdate) {
-            console.log('[Ubuntu Badges] New elements detected, updating badges...');
-            setTimeout(applyUbuntuBadgesToAllPlayers, 100);
+            console.log('[Hydrogen Badges] New elements detected, updating badges...');
+            setTimeout(applyHydrogenBadgesToAllPlayers, 100);
           }
         });
         
@@ -1253,24 +1253,24 @@ function createGameWindow(settings = {}) {
       }
 
 
-      function setupUbuntuSettingsListener() {
-        document.addEventListener('ubuntu-settings-changed', function(e) {
-          if (e.detail.setting === 'Ubuntu_Badge_api' || e.detail.setting === 'Ubuntu_Badge_custom_api') {
-            console.log('[Ubuntu Badges] Settings changed, refreshing badges...');
-            window.ubuntuBadges.clearBadgeCache();
-            setTimeout(applyUbuntuBadgesToAllPlayers, 500);
+      function setupHydrogenSettingsListener() {
+        document.addEventListener('hydrogen-settings-changed', function(e) {
+          if (e.detail.setting === 'Hydrogen_Badge_api' || e.detail.setting === 'Hydrogen_Badge_custom_api') {
+            console.log('[Hydrogen Badges] Settings changed, refreshing badges...');
+            window.hydrogenBadges.clearBadgeCache();
+            setTimeout(applyHydrogenBadgesToAllPlayers, 500);
           }
         });
         
         window.addEventListener('storage', function(e) {
-          if (e.key === 'Ubuntu_Badge_api' || e.key === 'Ubuntu_Badge_custom_api') {
-            console.log('[Ubuntu Badges] Storage changed, refreshing badges...');
-            window.ubuntuBadges.clearBadgeCache();
-            setTimeout(applyUbuntuBadgesToAllPlayers, 500);
+          if (e.key === 'Hydrogen_Badge_api' || e.key === 'Hydrogen_Badge_custom_api') {
+            console.log('[Hydrogen Badges] Storage changed, refreshing badges...');
+            window.hydrogenBadges.clearBadgeCache();
+            setTimeout(applyHydrogenBadgesToAllPlayers, 500);
           }
         });
         
-        console.log('[Ubuntu Badges] Settings listeners attached');
+        console.log('[Hydrogen Badges] Settings listeners attached');
       }
 
 
@@ -1280,34 +1280,34 @@ function createGameWindow(settings = {}) {
           try {
             const { ipcRenderer } = window.require('electron');
             const settings = await ipcRenderer.invoke('get-settings');
-            window.ubuntuBadges.setClientSettings(settings);
+            window.hydrogenBadges.setClientSettings(settings);
           } catch (e) {
-            console.log('[Ubuntu Badges] Could not get settings from launcher, using defaults');
+            console.log('[Hydrogen Badges] Could not get settings from launcher, using defaults');
           }
 
 
-          console.log('[Ubuntu Badges] Current settings:');
-          console.log('  Badge API:', window.ubuntuBadges.getBadgeApiSetting());
-          console.log('  Custom API:', window.ubuntuBadges.getCustomBadgeApi());
-          console.log('  Badges enabled:', window.ubuntuBadges.areBadgesEnabled());
-          console.log('  Active source:', window.ubuntuBadges.getActiveBadgeSource());
+          console.log('[Hydrogen Badges] Current settings:');
+          console.log('  Badge API:', window.hydrogenBadges.getBadgeApiSetting());
+          console.log('  Custom API:', window.hydrogenBadges.getCustomBadgeApi());
+          console.log('  Badges enabled:', window.hydrogenBadges.areBadgesEnabled());
+          console.log('  Active source:', window.hydrogenBadges.getActiveBadgeSource());
 
 
-          await applyUbuntuBadgesToAllPlayers();
+          await applyHydrogenBadgesToAllPlayers();
 
 
           watchForBadgeElements();
 
 
-          setupUbuntuSettingsListener();
+          setupHydrogenSettingsListener();
 
 
-          window.refreshUbuntuBadges = applyUbuntuBadgesToAllPlayers;
+          window.refreshHydrogenBadges = applyHydrogenBadgesToAllPlayers;
           
-          console.log('[Ubuntu Badges] Badge system initialized successfully');
+          console.log('[Hydrogen Badges] Badge system initialized successfully');
         } catch (e) {
-          console.error('[Ubuntu Badges] Failed to initialize badge system:', e);
-          console.error('[Ubuntu Badges] Error stack:', e.stack);
+          console.error('[Hydrogen Badges] Failed to initialize badge system:', e);
+          console.error('[Hydrogen Badges] Error stack:', e.stack);
         }
       }, 100);
     })();
@@ -1334,7 +1334,7 @@ function createGameWindow(settings = {}) {
                     badgeScript + '\n' +
                     safeCall(settingsSearchAddon, 'settingsSearchAddon') + '\n' +
                     safeCall(nameChangeAddon, 'nameChangeAddon') + '\n' +
-                    safeCall(settingsUbuntuAddon, 'settingsUbuntuAddon') + '\n' +
+                    safeCall(settingsHydrogenAddon, 'settingsHydrogenAddon') + '\n' +
                     safeCall(overlayColorAddon, 'overlayColorAddon') + '\n' +
                     safeCall(socialCardsAddon, 'socialCardsAddon') + '\n' +
                     safeCall(inspectPriceAddon, 'inspectPriceAddon') + '\n' +
@@ -1353,7 +1353,7 @@ function createGameWindow(settings = {}) {
                     safeCall(scoreDisplayAddon, 'scoreDisplayAddon');
 
 
-  const settingsPath = path.join(ubuntuFolder, 'settings.txt');
+  const settingsPath = path.join(hydrogenFolder, 'settings.txt');
   let proxyUrl = 'https://kirka.io/';
   let discordRpcEnabled = true;
 
@@ -1489,7 +1489,7 @@ function createGameWindow(settings = {}) {
 
 
   gameWindow.webContents.setUserAgent(
-    `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.7103.116 Safari/537.36 Electron/${app.getVersion()} UbuntuClient/${app.getVersion()}`
+    `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.7103.116 Safari/537.36 Electron/${app.getVersion()} HydrogenClient/${app.getVersion()}`
   );
 
   console.log(' Loading URL:', proxyUrl);

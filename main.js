@@ -170,27 +170,27 @@ function loadAndApplySwitches() {
 
 function getSettingsFilePath() {
   const documentsPath = app.getPath('documents');
-  const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
-  if (!fs.existsSync(ubuntuFolder)) {
-    fs.mkdirSync(ubuntuFolder, { recursive: true });
-    console.log('Created Ubuntu folder at:', ubuntuFolder);
+  const hydrogenFolder = path.join(documentsPath, 'Ubuntu');
+  if (!fs.existsSync(hydrogenFolder)) {
+    fs.mkdirSync(hydrogenFolder, { recursive: true });
+    console.log('Created Hydrogen folder at:', hydrogenFolder);
   }
-  return path.join(ubuntuFolder, 'settings.txt');
+  return path.join(hydrogenFolder, 'settings.txt');
 }
 
 function getTokenFilePath() {
   const documentsPath = app.getPath('documents');
-  const ubuntuFolder = path.join(documentsPath, 'Ubuntu');
-  if (!fs.existsSync(ubuntuFolder)) {
-    fs.mkdirSync(ubuntuFolder, { recursive: true });
-    console.log('Created Ubuntu folder at:', ubuntuFolder);
+  const hydrogenFolder = path.join(documentsPath, 'Ubuntu');
+  if (!fs.existsSync(hydrogenFolder)) {
+    fs.mkdirSync(hydrogenFolder, { recursive: true });
+    console.log('Created Hydrogen folder at:', hydrogenFolder);
   }
-  return path.join(ubuntuFolder, 'token.txt');
+  return path.join(hydrogenFolder, 'token.txt');
 }
 
 function createSplashWindow() {
   splashWindow = new BrowserWindow({
-    icon: path.join(__dirname, "/assets/icon.png"),
+    icon: path.join(__dirname, "/assets/HYD.png"),
     width: 1120,
     height: 720,
     frame: false,
@@ -486,11 +486,11 @@ ipcMain.on('update-game-token', (event, token) => {
           console.log('Updating localStorage with token:', token ? 'present' : 'null');
           if (token) {
             localStorage.setItem('token', token);
-            localStorage.setItem('Ubuntu_token', token);
+            localStorage.setItem('Hydrogen_token', token);
             console.log('Game token updated to:', token.substring(0, 20) + '...');
           } else {
             localStorage.removeItem('token');
-            localStorage.removeItem('Ubuntu_token');
+            localStorage.removeItem('Hydrogen_token');
             console.log('Game token cleared');
           }
           window.dispatchEvent(new StorageEvent('storage', {
@@ -776,7 +776,7 @@ ipcMain.on('launch-game', () => {
               const token = ${JSON.stringify(active.token)};
               if (token) {
                 localStorage.setItem('token', token);
-                localStorage.setItem('Ubuntu_token', token);
+                localStorage.setItem('Hydrogen_token', token);
                 console.log('Token injected on game load');
               }
             } catch(e) {

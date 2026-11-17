@@ -1,23 +1,23 @@
 /**
- * Restyles the social cards in the game to show Ubuntu client branding
+ * Restyles the social cards in the game to show Hydrogen client branding
  * and replaces Reddit with Discord invite.
  * 
- * - Changes "CLIENT" card to Ubuntu with gradient styling
+ * - Changes "CLIENT" card to Hydrogen with gradient styling
  * - Replaces Reddit card with Discord invite
- * - Adds continuous slow spinning Ubuntu icon (only on Ubuntu card)
+ * - Adds continuous slow spinning Hydrogen icon (only on Hydrogen card)
  */
 const socialCardsAddon = () => {
   const { shell } = require('electron');
 
-  const UBUNTU_ICON_URL = 'https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/icon.png';
-  const UBUNTU_URL = 'https://ubuntuclient.xyz/';
+  const HYDROGEN_ICON_URL = 'https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/HYD.png';
+  const HYDROGEN_URL = 'https://www.yxzoi.xyz/Hydrogen';
   const DISCORD_INVITE = 'https://discord.gg/PM9zNcZYPe';
   const ICON_SIZE = 48; // px
 
-  // Continuous spin stylesheet for Ubuntu card only, injected once
-  if (!document.getElementById('ubuntu-icon-spin-style')) {
+  // Continuous spin stylesheet for Hydrogen card only, injected once
+  if (!document.getElementById('hydrogen-icon-spin-style')) {
     const style = document.createElement('style');
-    style.id = 'ubuntu-icon-spin-style';
+    style.id = 'hydrogen-icon-spin-style';
     style.textContent = `
       @keyframes slowSpin {
         from {
@@ -27,7 +27,7 @@ const socialCardsAddon = () => {
           transform: rotate(360deg);
         }
       }
-      .ubuntu-card .soc-icon {
+      .hydrogen-card .soc-icon {
         animation: slowSpin 8s linear infinite !important;
         display: inline-block !important;
       }
@@ -36,26 +36,26 @@ const socialCardsAddon = () => {
   }
 
   // Track if cards are already set up
-  let ubuntuCardSetup = false;
+  let hydrogenCardSetup = false;
   let discordCardSetup = false;
 
-  // ---- Ubuntu client card ----
-  const setupUbuntuCard = () => {
+  // ---- Hydrogen client card ----
+  const setupHydrogenCard = () => {
     const card = [...document.querySelectorAll('.soc-group')].find(el =>
-      el.textContent.includes('CLIENT') || el.textContent.includes('Ubuntu')
+      el.textContent.includes('CLIENT') || el.textContent.includes('Hydrogen')
     );
     if (!card) return;
 
     // Check if this card is already set up
-    if (card.dataset.ubuntuSetup === 'true') {
+    if (card.dataset.hydrogenSetup === 'true') {
       return;
     }
 
     // Mark as set up
-    card.dataset.ubuntuSetup = 'true';
-    ubuntuCardSetup = true;
+    card.dataset.hydrogenSetup = 'true';
+    hydrogenCardSetup = true;
 
-    card.classList.add('ubuntu-card', 'restyled-soc-card');
+    card.classList.add('hydrogen-card', 'restyled-soc-card');
     card.style.setProperty('background', 'linear-gradient(135deg, #0D4728 0%, #1A8E50 50%, #23BF6C 100%)', 'important');
     card.style.setProperty('box-shadow', '0 4px 15px rgba(26, 142, 80, 0.3)', 'important');
     card.style.setProperty('transition', 'all 0.3s ease', 'important');
@@ -63,12 +63,12 @@ const socialCardsAddon = () => {
     card.style.cursor = 'pointer';
 
     const nameDiv = card.querySelector('.discord-name');
-    if (nameDiv) nameDiv.innerText = 'Ubuntu';
+    if (nameDiv) nameDiv.innerText = 'Hydrogen';
 
     const svg = card.querySelector('.soc-icon');
     if (svg && !svg.dataset.replaced) {
       const replacement = document.createElement('img');
-      replacement.src = UBUNTU_ICON_URL;
+      replacement.src = HYDROGEN_ICON_URL;
       replacement.className = 'soc-icon';
       if (svg.className) {
         const extraClasses = svg.className.baseVal ? svg.className.baseVal.split(' ') : [];
@@ -92,7 +92,7 @@ const socialCardsAddon = () => {
     // Only set onclick once
     if (!card._onclickSet) {
       card._onclickSet = true;
-      card.onclick = () => shell.openExternal(UBUNTU_URL);
+      card.onclick = () => shell.openExternal(HYDROGEN_URL);
     }
   };
 
@@ -112,7 +112,7 @@ const socialCardsAddon = () => {
     card.dataset.discordSetup = 'true';
     discordCardSetup = true;
 
-    card.classList.remove('orange', 'ubuntu-card', 'restyled-soc-card');
+    card.classList.remove('orange', 'hydrogen-card', 'restyled-soc-card');
     card.style.setProperty('background', 'linear-gradient(135deg, #0D4728 0%, #1A8E50 50%, #23BF6C 100%)', 'important');
     card.style.setProperty('box-shadow', '0 4px 15px rgba(26, 142, 80, 0.3)', 'important');
     card.style.setProperty('transition', 'all 0.3s ease', 'important');
@@ -142,7 +142,7 @@ const socialCardsAddon = () => {
   };
 
   const applyAll = () => {
-    setupUbuntuCard();
+    setupHydrogenCard();
     setupDiscordCard();
   };
 
@@ -155,15 +155,15 @@ const socialCardsAddon = () => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => {
       // Only run if we haven't set up both cards yet
-      if (!ubuntuCardSetup || !discordCardSetup) {
+      if (!hydrogenCardSetup || !discordCardSetup) {
         applyAll();
       } else {
         // Just check for new cards without resetting existing ones
-        const ubuntuCard = [...document.querySelectorAll('.soc-group')].find(el =>
-          el.textContent.includes('CLIENT') || el.textContent.includes('Ubuntu')
+        const hydrogenCard = [...document.querySelectorAll('.soc-group')].find(el =>
+          el.textContent.includes('CLIENT') || el.textContent.includes('Hydrogen')
         );
-        if (ubuntuCard && !ubuntuCard.dataset.ubuntuSetup) {
-          setupUbuntuCard();
+        if (hydrogenCard && !hydrogenCard.dataset.hydrogenSetup) {
+          setupHydrogenCard();
         }
         
         const discordCard = [...document.querySelectorAll('.card-cont.soc-group.orange')].find(el =>
@@ -186,7 +186,7 @@ const socialCardsAddon = () => {
     observer.disconnect();
   });
 
-  console.log('[Social Cards] Ubuntu (with spinning icon) + Discord cards set up.');
+  console.log('[Social Cards] Hydrogen (with spinning icon) + Discord cards set up.');
 };
 
 // Export for use in main file

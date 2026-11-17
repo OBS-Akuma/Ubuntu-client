@@ -1,5 +1,5 @@
 {
-  "name": "ubuntu-client",
+  "name": "hydrogen-client",
   "version": "1.0.0",
   "description": "The Electron client for Kirka.io that i never made but always wanted to.",
   "main": "main.js",
@@ -22,8 +22,8 @@
     "electron-builder": "^23.0.2"
   },
   "build": {
-    "appId": "xyz.ubuntuclient",
-    "productName": "Ubuntu Client",
+    "appId": "xyz.yxzoi",
+    "productName": "Hydrogen Client",
     "files": [
       "**/*",
       "!**/node_modules/*/{CHANGELOG.md,README.md,readme.md,changelog.md}"

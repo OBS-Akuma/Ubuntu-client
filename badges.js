@@ -1,4 +1,4 @@
-// ubuntu-badges.js - Badge processing for Redline, Dawn, and Smudgy with Settings Integration
+// hydrogen-badges.js - Badge processing for Redline, Dawn, and Smudgy with Settings Integration
 
 const fs = require('fs');
 const path = require('path');
@@ -50,7 +50,7 @@ function getBadgeApiSetting() {
             return clientSettings.badge_api;
         }
         // Fallback to localStorage
-        return localStorage.getItem('Ubuntu_Badge_api') || 'https://raw.githubusercontent.com/OBS-Akuma/KirkaBadges/refs/heads/main/Json/badge.json';
+        return localStorage.getItem('Hydrogen_Badge_api') || 'https://raw.githubusercontent.com/OBS-Akuma/KirkaBadges/refs/heads/main/Json/badge.json';
     } catch {
         return 'https://raw.githubusercontent.com/OBS-Akuma/KirkaBadges/refs/heads/main/Json/badge.json';
     }
@@ -65,7 +65,7 @@ function getCustomBadgeApi() {
         if (clientSettings && clientSettings.custom_badge_api !== undefined) {
             return clientSettings.custom_badge_api;
         }
-        return localStorage.getItem('Ubuntu_Badge_custom_api') || '';
+        return localStorage.getItem('Hydrogen_Badge_custom_api') || '';
     } catch {
         return '';
     }
@@ -491,7 +491,7 @@ function applyBadgesToElement(element, badgeConfig, settings = {}) {
     if (!element || !badgeConfig) return;
     
     // Clear existing badges
-    const existingBadges = element.querySelector('.ubuntu-badges');
+    const existingBadges = element.querySelector('.hydrogen-badges');
     if (existingBadges) {
         existingBadges.remove();
     }
@@ -524,7 +524,7 @@ function applyBadgesToElement(element, badgeConfig, settings = {}) {
     
     // Create badges container
     const badgesContainer = document.createElement('div');
-    badgesContainer.className = 'ubuntu-badges';
+    badgesContainer.className = 'hydrogen-badges';
     badgesContainer.style.cssText = 'display: flex; gap: 0.25rem; align-items: center; margin-left: 0.25rem;';
     
     // Add badges
@@ -574,7 +574,7 @@ function applyBadgesToElement(element, badgeConfig, settings = {}) {
 function removeBadgesFromElement(element) {
     if (!element) return;
     
-    const badges = element.querySelector('.ubuntu-badges');
+    const badges = element.querySelector('.hydrogen-badges');
     if (badges) {
         badges.remove();
     }
@@ -628,29 +628,29 @@ function setupSettingsListener() {
     if (typeof window !== 'undefined') {
         // Listen for storage events (cross-tab)
         window.addEventListener('storage', (e) => {
-            if (e.key === 'Ubuntu_Badge_api' || e.key === 'Ubuntu_Badge_custom_api') {
+            if (e.key === 'Hydrogen_Badge_api' || e.key === 'Hydrogen_Badge_custom_api') {
                 clearBadgeCache();
-                console.log('[Ubuntu Badges] Cache cleared due to storage change');
+                console.log('[Hydrogen Badges] Cache cleared due to storage change');
             }
         });
 
         // Listen for custom events from Settings.js
         document.addEventListener('settings-changed', ({ detail }) => {
-            if (detail.key === 'Ubuntu_Badge_api' || detail.key === 'Ubuntu_Badge_custom_api') {
+            if (detail.key === 'Hydrogen_Badge_api' || detail.key === 'Hydrogen_Badge_custom_api') {
                 clearBadgeCache();
-                console.log('[Ubuntu Badges] Cache cleared due to settings change:', detail.key);
+                console.log('[Hydrogen Badges] Cache cleared due to settings change:', detail.key);
             }
         });
 
-        // Also listen for the Ubuntu settings event
-        document.addEventListener('ubuntu-settings-changed', ({ detail }) => {
-            if (detail.setting === 'Ubuntu_Badge_api' || detail.setting === 'Ubuntu_Badge_custom_api') {
+        // Also listen for the Hydrogen settings event
+        document.addEventListener('hydrogen-settings-changed', ({ detail }) => {
+            if (detail.setting === 'Hydrogen_Badge_api' || detail.setting === 'Hydrogen_Badge_custom_api') {
                 clearBadgeCache();
-                console.log('[Ubuntu Badges] Cache cleared due to ubuntu-settings change');
+                console.log('[Hydrogen Badges] Cache cleared due to hydrogen-settings change');
             }
         });
 
-        console.log('[Ubuntu Badges] Settings listeners initialized');
+        console.log('[Hydrogen Badges] Settings listeners initialized');
     }
 }
 
