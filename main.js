@@ -1,15 +1,35 @@
 const { BrowserWindow, app, ipcMain, shell } = require('electron');
 const fs = require("fs");
 const path = require("path");
+const { pathToFileURL } = require('url');
 const fetch = require('node-fetch');
-const { createGameWindow } = require('./game.js');
+const { createGameWindow, isTrustedGameSender } = require('./game.js');
 const { applySwitches, applyWindowSettings, getDefaultSettings } = require('./Switches.js');
 
 let splashWindow = null;
 let gameWindow = null;
 
+function openExternalWebUrl(url) {
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(url);
+  } catch (error) {
+    console.warn('Rejected invalid external URL:', error.message);
+    return;
+  }
+
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    console.warn('Rejected unsupported external URL protocol:', parsedUrl.protocol);
+    return;
+  }
+
+  shell.openExternal(parsedUrl.href).catch(error => {
+    console.error('Failed to open external URL:', error);
+  });
+}
+
 ipcMain.on("open-external", (_, url) => {
-  shell.openExternal(url);
+  openExternalWebUrl(url);
 });
 
 let ktiersCache = null;
@@ -202,6 +222,19 @@ function createSplashWindow() {
       contextIsolation: false,
     },
   });
+
+  const splashUrl = pathToFileURL(path.join(__dirname, 'Splash.html')).href;
+  splashWindow.webContents.on('will-navigate', (event, url) => {
+    if (url !== splashUrl) {
+      event.preventDefault();
+      openExternalWebUrl(url);
+    }
+  });
+  splashWindow.webContents.on('new-window', (event, url) => {
+    event.preventDefault();
+    openExternalWebUrl(url);
+  });
+
   splashWindow.loadFile(path.join(__dirname, 'Splash.html'));
   splashWindow.once('ready-to-show', () => splashWindow.show());
   splashWindow.on('closed', () => { splashWindow = null; });
@@ -584,14 +617,20 @@ function decodeToken(token) {
 
 ipcMain.on('save-token-request', async (event, token) => {
   try {
+    if (!isTrustedGameSender(event)) {
+      console.warn('Rejected token save request from an untrusted renderer');
+      event.reply('save-token-reply', { success: false, error: 'Untrusted renderer' });
+      return;
+    }
+
     console.log('=========================================');
     console.log(' SAVE TOKEN REQUEST RECEIVED');
     console.log('=========================================');
 
     const tokenStr = String(token || '').trim();
-    if (!tokenStr) {
-      console.log(' Empty token received, ignoring');
-      event.reply('save-token-reply', { success: false, error: 'Empty token' });
+    if (!tokenStr || tokenStr.length > 8192) {
+      console.log(' Invalid token length, ignoring');
+      event.reply('save-token-reply', { success: false, error: 'Invalid token length' });
       return;
     }
 

@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { createGameWindow } = require('./game.js');
+const { createGameWindow, isTrustedGameSender } = require('./game.js');
 
 let splashWindow = null;
 let gameWindow = null;
@@ -103,8 +103,13 @@ ipcMain.handle('clear-token', async () => {
 
 ipcMain.on('save-token-request', async (event, token) => {
   try {
+    if (!isTrustedGameSender(event)) {
+      console.warn('Rejected token save request from an untrusted renderer');
+      return;
+    }
+
     const tokenStr = String(token || '').trim();
-    if (!tokenStr) return;
+    if (!tokenStr || tokenStr.length > 8192) return;
     
     const filePath = getTokenFilePath();
     fs.writeFileSync(filePath, tokenStr, 'utf8');

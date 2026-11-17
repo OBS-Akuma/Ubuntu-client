@@ -47,9 +47,130 @@ console.log('did ts load?', {
 
 let discordRPC = null;
 let gameWindow = null;
+let trustedGameOrigin = null;
+
+function isTrustedGameSender(event) {
+  if (!gameWindow || gameWindow.isDestroyed() || event.sender !== gameWindow.webContents) {
+    return false;
+  }
+
+  try {
+    return new URL(event.sender.getURL()).origin === trustedGameOrigin;
+  } catch {
+    return false;
+  }
+}
+
+function isTrustedGameUrl(url) {
+  try {
+    return new URL(url).origin === trustedGameOrigin;
+  } catch {
+    return false;
+  }
+}
+
+function getActivityFilePath() {
+  return path.join(app.getPath('documents'), 'Ubuntu', 'Activity.json');
+}
+
+ipcMain.handle('load-activity-data', (event) => {
+  if (!isTrustedGameSender(event)) {
+    throw new Error('Rejected activity-data request from an untrusted renderer');
+  }
+
+  try {
+    const filePath = getActivityFilePath();
+    if (!fs.existsSync(filePath)) {
+      return { success: true, data: { totalKills: 0, weapons: {} } };
+    }
+
+    return { success: true, data: JSON.parse(fs.readFileSync(filePath, 'utf8')) };
+  } catch (error) {
+    console.error('Failed to load activity data:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.on('save-activity-data', (event, data) => {
+  if (!isTrustedGameSender(event)) {
+    console.warn('Rejected activity-data save from an untrusted renderer');
+    return;
+  }
+
+  if (
+    !data ||
+    typeof data !== 'object' ||
+    Array.isArray(data) ||
+    !Number.isFinite(data.totalKills) ||
+    data.totalKills < 0 ||
+    !data.weapons ||
+    typeof data.weapons !== 'object' ||
+    Array.isArray(data.weapons)
+  ) {
+    event.reply('save-activity-reply', { success: false, error: 'Invalid activity data' });
+    return;
+  }
+
+  try {
+    const filePath = getActivityFilePath();
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    const savedData = { ...data, lastUpdated: new Date().toISOString() };
+    const serializedData = JSON.stringify(savedData, null, 2);
+    if (serializedData.length > 1024 * 1024) {
+      event.reply('save-activity-reply', { success: false, error: 'Activity data exceeds size limit' });
+      return;
+    }
+
+    fs.writeFileSync(filePath, serializedData, 'utf8');
+    event.reply('save-activity-reply', { success: true, filePath });
+  } catch (error) {
+    console.error('Failed to save activity data:', error);
+    event.reply('save-activity-reply', { success: false, error: error.message });
+  }
+});
+
+ipcMain.handle('game:get-badge-settings', (event) => {
+  if (!isTrustedGameSender(event)) {
+    throw new Error('Rejected badge-settings request from an untrusted renderer');
+  }
+
+  const settingsPath = path.join(app.getPath('documents'), 'Ubuntu', 'settings.txt');
+  const settings = fs.existsSync(settingsPath)
+    ? JSON.parse(fs.readFileSync(settingsPath, 'utf8'))
+    : {};
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+    throw new Error('Invalid settings data');
+  }
+
+  return {
+    badge_api: settings.badge_api,
+    custom_badge_api: settings.custom_badge_api,
+    badges_enabled: settings.badges_enabled,
+    active_badge_source: settings.active_badge_source
+  };
+});
+
+function openExternalWebUrl(url) {
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(url);
+  } catch (error) {
+    console.warn('Rejected invalid external URL:', error.message);
+    return;
+  }
+
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    console.warn('Rejected unsupported external URL protocol:', parsedUrl.protocol);
+    return;
+  }
+
+  shell.openExternal(parsedUrl.href).catch(error => {
+    console.error('Failed to open external URL:', error);
+  });
+}
 
 ipcMain.on("open-external", (_, url) => {
-  shell.openExternal(url);
+  openExternalWebUrl(url);
 });
 
 function createGameWindow(settings = {}) {
@@ -78,9 +199,11 @@ function createGameWindow(settings = {}) {
     show: false,
     backgroundColor: "#141414",
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      webSecurity: false,
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: true,
+      sandbox: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
   });
 
@@ -88,7 +211,7 @@ function createGameWindow(settings = {}) {
 
   gameWindow.webContents.on('new-window', (event, url) => {
     event.preventDefault();
-    shell.openExternal(url);
+    openExternalWebUrl(url);
   });
 
   const documentsPath = app.getPath('documents');
@@ -559,25 +682,19 @@ function createGameWindow(settings = {}) {
       }
       
       if (!window.electronAPI) {
-        window.electronAPI = {
-          saveToken: (token) => {
-            if (tokenSaved) {
-              console.log(' Token already saved, skipping duplicate');
-              return;
-            }
-            
-            if (window.require) {
-              try {
-                const { ipcRenderer } = window.require('electron');
-                ipcRenderer.send('save-token-request', token);
-                tokenSaved = true;
-                console.log(' Token sent to launcher');
-              } catch(e) {
-                console.error(' Failed to send token:', e);
-              }
-            }
-          }
-        };
+        console.error(' Secure game bridge is unavailable');
+        return;
+      }
+
+      function saveTokenOnce(token) {
+        if (tokenSaved) {
+          console.log(' Token already saved, skipping duplicate');
+          return;
+        }
+
+        window.electronAPI.saveToken(token);
+        tokenSaved = true;
+        console.log(' Token sent to launcher');
       }
 
       try {
@@ -585,12 +702,12 @@ function createGameWindow(settings = {}) {
         if (existingCandidate && looksLikeJWT(existingCandidate)) {
           console.log('[TokenCapture] Found existing token already in localStorage on script start');
           if (window.electronAPI && window.electronAPI.saveToken) {
-            window.electronAPI.saveToken(existingCandidate);
+            saveTokenOnce(existingCandidate);
           }
         } else if (existingCandidate) {
           console.log('[TokenCapture] Found existing localStorage.token but it does not look like a JWT, sending anyway');
           if (window.electronAPI && window.electronAPI.saveToken) {
-            window.electronAPI.saveToken(existingCandidate);
+            saveTokenOnce(existingCandidate);
           }
         } else {
           console.log('[TokenCapture] No existing token in localStorage on script start');
@@ -613,7 +730,7 @@ function createGameWindow(settings = {}) {
           if (value && (isKnownKey || isJWTShaped)) {
             console.log('[TokenCapture] Candidate token detected on key:', key, isKnownKey ? '(known key)' : '(JWT-shaped)');
             if (window.electronAPI && window.electronAPI.saveToken) {
-              window.electronAPI.saveToken(value);
+              saveTokenOnce(value);
             }
           }
         };
@@ -641,7 +758,7 @@ function createGameWindow(settings = {}) {
           if (e.newValue && e.newValue !== e.oldValue && (isKnownKey || isJWTShaped)) {
             console.log(' Token changed in storage on key:', e.key);
             if (window.electronAPI && window.electronAPI.saveToken) {
-              window.electronAPI.saveToken(e.newValue);
+              saveTokenOnce(e.newValue);
             }
           }
         });
@@ -662,13 +779,10 @@ function createGameWindow(settings = {}) {
       
       async function loadExistingData() {
         try {
-          if (window.require) {
-            const { ipcRenderer } = window.require('electron');
-            const result = await ipcRenderer.invoke('load-activity-data');
-            if (result.success && result.data) {
-              console.log(' Loaded existing data:', result.data.totalKills, 'kills');
-              return result.data;
-            }
+          const result = await window.electronAPI.loadActivityData();
+          if (result.success && result.data) {
+            console.log(' Loaded existing data:', result.data.totalKills, 'kills');
+            return result.data;
           }
         } catch (e) {
           console.error(' Failed to load existing data:', e);
@@ -688,21 +802,15 @@ function createGameWindow(settings = {}) {
         
         console.log(' Saving via IPC:', data.totalKills, 'kills');
         try {
-          if (window.require) {
-            isSaving = true;
-            const { ipcRenderer } = window.require('electron');
-            ipcRenderer.send('save-activity-data', data);
-            console.log(' IPC message sent');
-            
-            setTimeout(() => {
-              isSaving = false;
-            }, 1000);
-            
-            return true;
-          } else {
-            console.log(' window.require not available');
-            return false;
-          }
+          isSaving = true;
+          window.electronAPI.saveActivityData(data);
+          console.log(' IPC message sent');
+
+          setTimeout(() => {
+            isSaving = false;
+          }, 1000);
+
+          return true;
         } catch (e) {
           console.error(' Failed to send IPC:', e);
           isSaving = false;
@@ -710,16 +818,13 @@ function createGameWindow(settings = {}) {
         }
       }
 
-      if (window.require) {
-        const { ipcRenderer } = window.require('electron');
-        ipcRenderer.on('save-activity-reply', (event, reply) => {
-          if (reply.success) {
-            console.log(' File saved successfully at:', reply.filePath);
-          } else {
-            console.error(' File save failed:', reply.error);
-          }
-        });
-      }
+      window.electronAPI.onSaveActivityReply((reply) => {
+        if (reply.success) {
+          console.log(' File saved successfully at:', reply.filePath);
+        } else {
+          console.error(' File save failed:', reply.error);
+        }
+      });
 
       const GUN_DATA_URL = 'https://raw.githubusercontent.com/OBS-Akuma/KirkaBadges/refs/heads/main/Json/gd.json';
       const TARGET_PLAYER = '${targetPlayer}';
@@ -1138,16 +1243,13 @@ function createGameWindow(settings = {}) {
       
 
       try {
-
         ${badgeModuleSource}
         console.log('[Hydrogen Badges] Badge module loaded successfully');
       } catch (e) {
         console.error('[Hydrogen Badges] Failed to load badge module:', e);
       }
-      
 
-      if (typeof module !== 'undefined' && module.exports) {
-        window.hydrogenBadges = module.exports;
+      if (window.hydrogenBadges) {
         console.log('[Hydrogen Badges] Badge module exposed as window.hydrogenBadges');
       } else {
         console.error('[Hydrogen Badges] Badge module not found after loading');
@@ -1278,8 +1380,7 @@ function createGameWindow(settings = {}) {
         try {
 
           try {
-            const { ipcRenderer } = window.require('electron');
-            const settings = await ipcRenderer.invoke('get-settings');
+            const settings = await window.electronAPI.getBadgeSettings();
             window.hydrogenBadges.setClientSettings(settings);
           } catch (e) {
             console.log('[Hydrogen Badges] Could not get settings from launcher, using defaults');
@@ -1377,6 +1478,25 @@ function createGameWindow(settings = {}) {
   } catch (e) {
     console.log(' Error reading settings:', e);
   }
+
+  const parsedProxyUrl = new URL(proxyUrl);
+  if (!['http:', 'https:'].includes(parsedProxyUrl.protocol)) {
+    throw new Error(`Unsupported game URL protocol: ${parsedProxyUrl.protocol}`);
+  }
+  proxyUrl = parsedProxyUrl.href;
+  trustedGameOrigin = parsedProxyUrl.origin;
+
+  gameWindow.webContents.on('will-navigate', (event, url) => {
+    if (!isTrustedGameUrl(url)) {
+      event.preventDefault();
+    }
+  });
+
+  gameWindow.webContents.on('will-redirect', (event, url) => {
+    if (!isTrustedGameUrl(url)) {
+      event.preventDefault();
+    }
+  });
 
 
   if (discordRpcEnabled && !discordRPC) {
@@ -1511,9 +1631,10 @@ function createGameWindow(settings = {}) {
       discordRPC = null;
     }
     gameWindow = null;
+    trustedGameOrigin = null;
   });
 
   return gameWindow;
 }
 
-module.exports = { createGameWindow };
+module.exports = { createGameWindow, isTrustedGameSender };

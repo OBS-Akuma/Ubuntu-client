@@ -1,9 +1,5 @@
 // hydrogen-badges.js - Badge processing for Redline, Dawn, and Smudgy with Settings Integration
 
-const fs = require('fs');
-const path = require('path');
-const { ipcRenderer } = require('electron');
-
 // Cache for badge data to avoid repeated fetches
 const badgeCache = {
     redline: null,
@@ -660,7 +656,7 @@ if (typeof window !== 'undefined' && document) {
 }
 
 // Export functions for use in main client
-module.exports = {
+const badgeModule = {
     fetchBadgeData,
     processRedlineBadges,
     processDawnBadges,
@@ -681,3 +677,11 @@ module.exports = {
     BADGE_SOURCES,
     SOURCE_NAMES
 };
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = badgeModule;
+}
+
+if (typeof window !== 'undefined') {
+    window.hydrogenBadges = badgeModule;
+}

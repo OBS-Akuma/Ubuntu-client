@@ -7,8 +7,6 @@
  * - Adds continuous slow spinning Hydrogen icon (only on Hydrogen card)
  */
 const socialCardsAddon = () => {
-  const { shell } = require('electron');
-
   const HYDROGEN_ICON_URL = 'https://raw.githubusercontent.com/OBS-Akuma/Ubuntu-client/refs/heads/main/assets/HYD.png';
   const HYDROGEN_URL = 'https://www.yxzoi.xyz/Hydrogen';
   const DISCORD_INVITE = 'https://discord.gg/PM9zNcZYPe';
@@ -92,7 +90,7 @@ const socialCardsAddon = () => {
     // Only set onclick once
     if (!card._onclickSet) {
       card._onclickSet = true;
-      card.onclick = () => shell.openExternal(HYDROGEN_URL);
+      card.onclick = () => window.open(HYDROGEN_URL, '_blank');
     }
   };
 
@@ -137,7 +135,7 @@ const socialCardsAddon = () => {
     // Only set onclick once
     if (!card._onclickSet) {
       card._onclickSet = true;
-      card.onclick = () => shell.openExternal(DISCORD_INVITE);
+      card.onclick = () => window.open(DISCORD_INVITE, '_blank');
     }
   };
 

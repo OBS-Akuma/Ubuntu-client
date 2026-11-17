@@ -12,49 +12,6 @@ ipcMain.handle('get-documents-path', () => {
   return app.getPath('documents');
 });
 
-ipcMain.on('save-activity-data', (event, data) => {
-  try {
-    console.log(' Received save request from renderer:', data);
-    const documentsPath = app.getPath('documents');
-    const hydrogenFolder = path.join(documentsPath, 'Ubuntu');
-    
-    if (!fs.existsSync(hydrogenFolder)) {
-      fs.mkdirSync(hydrogenFolder, { recursive: true });
-      console.log(' Created Hydrogen folder');
-    }
-    
-    const filePath = path.join(hydrogenFolder, 'Activity.json');
-    data.lastUpdated = new Date().toISOString();
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-    console.log(' Saved to file:', filePath);
-    console.log(' Total kills saved:', data.totalKills);
-    
-    event.reply('save-activity-reply', { success: true, filePath });
-  } catch (e) {
-    console.error(' Failed to save:', e);
-    event.reply('save-activity-reply', { success: false, error: e.message });
-  }
-});
-
-ipcMain.handle('load-activity-data', () => {
-  try {
-    const documentsPath = app.getPath('documents');
-    const hydrogenFolder = path.join(documentsPath, 'Ubuntu');
-    const filePath = path.join(hydrogenFolder, 'Activity.json');
-    
-    if (!fs.existsSync(filePath)) {
-      return { success: true, data: { totalKills: 0, weapons: {} } };
-    }
-    
-    const data = fs.readFileSync(filePath, 'utf8');
-    const stats = JSON.parse(data);
-    return { success: true, data: stats };
-  } catch (e) {
-    console.error(' Failed to load activity data:', e);
-    return { success: false, error: e.message };
-  }
-});
-
 function createGameWindow(settings = {}) {
 
   if (gameWindow && !gameWindow.isDestroyed()) {
@@ -83,9 +40,11 @@ function createGameWindow(settings = {}) {
     show: false,
     backgroundColor: "#141414",
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      webSecurity: false,
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: true,
+      sandbox: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
   });
 
