@@ -9,7 +9,7 @@
   "PAYMENT": "PAYER",
   "MAP": "MAP",
   "VIP": "VIP",
-  "TRIAL": "TRIALMOD",
+  "TRIAL": "TRIAL MOD",
   "TESTER": "TESTER",
   "#4d9aff": "VERIFIED",
   "#66d73c": "BUG",
@@ -22,5 +22,5 @@
   "#6d96b0": "MAP",
   "#a918ec": "VIP",
   "#b681ff": "TESTER",
-  "#bc9af7": "TRIALMOD"
+  "#bc9af7": "TRIAL MOD"
 }
